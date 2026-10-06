@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StockNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleStockNotFoundException(StockNotFoundException exception) {
         var guid = UUID.randomUUID().toString();
-        log.info("Global Exception: Email Already Exists Exception : Error GUID = {}, Error message = {}", guid, exception.getMessage());
+        log.info("Global Exception: Stock Not Found Exception : Error GUID = {}, Error message = {}", guid, exception.getMessage());
 
         var response = new ErrorResponse(
                 guid, exception.getErrorCode(), exception.getErrorMessage(),
