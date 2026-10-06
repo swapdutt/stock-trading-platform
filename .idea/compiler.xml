@@ -10,7 +10,6 @@
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
         </processorPath>
-        <module name="market-data-service" />
         <module name="notification-service" />
         <module name="portfolio-service" />
       </profile>
@@ -21,9 +20,10 @@
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
         </processorPath>
-        <module name="api-gateway-service" />
+        <module name="market-data-service" />
         <module name="user-service" />
         <module name="order-service" />
+        <module name="api-gateway-service" />
       </profile>
     </annotationProcessing>
   </component>
