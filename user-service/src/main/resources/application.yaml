@@ -25,8 +25,8 @@ server:
 
 jwt:
   secret:
-  expiration:
-  refreshTokenExpiration:
+  expiration: 86400000 #1-hour
+  refreshTokenExpiration: 604800000 #24-hours
 
 management:
   endpoints:
