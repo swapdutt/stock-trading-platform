@@ -1,9 +1,5 @@
 # 📈 Stock Trading Microservices Platform - Built using Java 25, Spring Boot 4.1.1, Apache Kafka, MySQL and AI.
 
-
-(Details will be provided at the end of the implementation.)
-
-
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?logo=springboot&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.9.16-C71A36?logo=apachemaven&logoColor=white)
