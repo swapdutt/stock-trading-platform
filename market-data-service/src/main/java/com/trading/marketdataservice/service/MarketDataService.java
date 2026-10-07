@@ -4,9 +4,10 @@ import com.trading.marketdataservice.dto.StockPriceDto;
 import com.trading.marketdataservice.entity.Stock;
 import com.trading.marketdataservice.exception.StockNotFoundException;
 import com.trading.marketdataservice.repository.StockRepository;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MarketDataService {
+@Order(2)
+public class MarketDataService implements CommandLineRunner {
 
     private final StockRepository stockRepository;
     private final Map<String, StockPriceDto> stockPrices = new ConcurrentHashMap<>(); // ConcurrentHashMap is used here for thread safety
@@ -43,8 +46,8 @@ public class MarketDataService {
      * Initialize the stock prices
      */
 
-    @PostConstruct
-    public void initializePrices() {
+    @Override
+    public void run(String... args) {
         log.info("Loading stock price");
         List<Stock> stocks = stockRepository.findByActiveTrue();
 
@@ -64,7 +67,7 @@ public class MarketDataService {
             dto.setLow(stock.getInitialPrice());
             dto.setOpen(stock.getInitialPrice());
             dto.setVolume(0L);
-            dto.setTimestamp(LocalDateTime.now());
+            dto.setTimestamp(LocalDateTime.now(ZoneId.systemDefault()));
 
             stockPrices.put(stock.getSymbol(), dto);
             log.info("Loaded Stock : {} at {}", stock.getSymbol(), stock.getInitialPrice());
@@ -120,7 +123,7 @@ public class MarketDataService {
             currentPrice.setChangePercent(changePercent);
             currentPrice.setHigh(newHigh);
             currentPrice.setLow(newLow);
-            currentPrice.setTimestamp(LocalDateTime.now());
+            currentPrice.setTimestamp(LocalDateTime.now(ZoneId.systemDefault()));
 
             /*
              * Redis caching part
@@ -136,7 +139,7 @@ public class MarketDataService {
             Map<String, Object> priceUpdatedEvent = new HashMap<>();
             priceUpdatedEvent.put("symbol", symbol);
             priceUpdatedEvent.put("price", newPrice);
-            priceUpdatedEvent.put("timestamp", LocalDateTime.now());
+            priceUpdatedEvent.put("timestamp", LocalDateTime.now(ZoneId.systemDefault()));
 
             kafkaTemplate.send(PRICE_UPDATED_TOPIC, symbol, priceUpdatedEvent);
         });

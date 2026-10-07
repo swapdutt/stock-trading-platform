@@ -35,18 +35,23 @@
         <lz4.java-version>1.12.0</lz4.java-version>
         <zstd.jni-version>1.5.7-21</zstd.jni-version>
         <snappy.java-version>1.1.10.11</snappy.java-version>
-        <jackson-version>3.2.3</jackson-version>
+        <jackson-version>2.22.3</jackson-version>
         <tomcat-version>11.0.26</tomcat-version>
         <kafka2-version>4.3.1</kafka2-version>
         <bcprov.jdk18on-version>1.86</bcprov.jdk18on-version>
         <netty-version>4.2.18.Final</netty-version>
-        <spring.gateway-version>4.3.5</spring.gateway-version>
+        <jackson.annotations-version>2.22</jackson.annotations-version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <version>${logback.classic-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
             <version>${logback.classic-version}</version>
         </dependency>
         <dependency>
@@ -65,20 +70,14 @@
             <version>${snappy.java-version}</version>
         </dependency>
         <dependency>
-            <groupId>tools.jackson.core</groupId>
+            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${jackson-version}</version>
         </dependency>
         <dependency>
-            <groupId>tools.jackson.core</groupId>
+            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson-version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>tools.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.tomcat.embed</groupId>
@@ -149,9 +148,14 @@
             <version>${netty-version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-gateway-server</artifactId>
-            <version>${spring.cloud.gateway-version}</version>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.annotations-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson-version}</version>
         </dependency>
     </dependencies>
 

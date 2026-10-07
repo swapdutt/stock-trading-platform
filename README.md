@@ -553,7 +553,7 @@ These findings describe the reviewed source revision and should be revisited as 
 | Order validation | `OrderRequest.orderType` applies `@NotBlank` to an enum; `quantity` has `@Min` without `@NotNull` | Use enum-appropriate null validation and require a non-null positive quantity |
 | Registration event | User service publishes `user.registered`, while notifications listen on `user.register` | Align the listener with the producer's topic |
 | Stock initialization | `DataInitializer` has no implementation, so a fresh database has no active stocks | Add stock seed data and restart the market-data service, or implement an initializer |
-| Exception timestamps | Custom exception handlers call `ZoneId.of("IST")` | Use a valid region ID such as `Asia/Kolkata` so error formatting does not fail |
+| Exception timestamps | Custom exception handlers call `ZoneId.systemDefault()` | Use a valid region ID such as `Asia/Kolkata` so error formatting does not fail |
 
 ### Behavioral limitations
 

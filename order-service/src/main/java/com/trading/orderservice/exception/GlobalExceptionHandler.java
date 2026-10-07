@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
         var response = new ErrorResponse(
                 guid, exception.getErrorCode(), exception.getErrorMessage(),
                 exception.getStatus().value(), exception.getStatus().name(),
-                LocalDateTime.now(ZoneId.of("IST")));
+                LocalDateTime.now(ZoneId.systemDefault()));
 
         return new ResponseEntity<>(response, exception.getStatus());
     }

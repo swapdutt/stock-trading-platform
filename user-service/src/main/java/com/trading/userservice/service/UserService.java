@@ -54,7 +54,7 @@ public class UserService {
     public AuthResponse register(RegisterRequest request) {
         log.info("Registering user : {}", request.getEmail());
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (Boolean.TRUE.equals(userRepository.existsByEmail(request.getEmail()))) {
             throw new EmailAlreadyExistsException("409", "Requested Email : " + request.getEmail() + " already registered", HttpStatus.CONFLICT);
         }
 

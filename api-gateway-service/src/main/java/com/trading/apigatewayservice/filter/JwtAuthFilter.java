@@ -6,71 +6,68 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.gateway.filter.GatewayFilter;
-import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ServerWebExchange;
-import reactor.core.publisher.Mono;
+import org.springframework.web.servlet.function.HandlerFilterFunction;
+import org.springframework.web.servlet.function.HandlerFunction;
+import org.springframework.web.servlet.function.ServerRequest;
+import org.springframework.web.servlet.function.ServerResponse;
 
 import javax.crypto.SecretKey;
 import java.util.Objects;
 
 @Slf4j
 @Component
-public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Config> {
+public class JwtAuthFilter implements HandlerFilterFunction<ServerResponse, ServerResponse> {
 
     @Value("${jwt.secret}")
     private String secretKey;
 
-    public JwtAuthFilter() {
-        super(Config.class);
-    }
-
     @Override
-    public GatewayFilter apply(Config config) {
-        return ((exchange, chain) -> {
-            ServerHttpRequest request = exchange.getRequest();
-            String path = request.getPath().toString();
+    public ServerResponse filter(ServerRequest request, HandlerFunction<ServerResponse> next) throws Exception {
 
-            // Skip JWT auth for public endpoints.
-            if (isPublicEndpoint(path)) {
-                log.debug("Public endpoint - skipping JWT authentication: {}", path);
-                return chain.filter(exchange);
-            }
+        String path = request.path();
 
-            if (!request.getHeaders().containsHeader("Authorization")) {
-                log.warn("JWT authentication header is missing : {}", path);
-                return unauthorizedResponse(exchange, "Authorization Header missing");
-            }
+        // Skip JWT auth for public endpoints.
+        if (isPublicEndpoint(path)) {
+            log.debug("Public endpoint - skipping JWT authentication: {}", path);
+            return next.handle(request);
+        }
 
-            String authHeader = request.getHeaders().getFirst("Authorization");
-            if (authHeader == null || !Objects.requireNonNull(authHeader).startsWith("Bearer ")) {
-                return unauthorizedResponse(exchange, "Invalid Authorization format");
-            }
+        // Validate Authorization Header presence
+        if (Objects.requireNonNull(request.headers().firstHeader("Authorization")).isEmpty()) {
+            log.warn("JWT authentication header is missing : {}", path);
+            return unauthorizedResponse("Authorization Header missing");
+        }
 
-            String token = authHeader.substring(7);
+        String authHeader = request.headers().firstHeader("Authorization");
+        if (authHeader == null || !Objects.requireNonNull(authHeader).startsWith("Bearer ")) {
+            return unauthorizedResponse("Invalid Authorization format");
+        }
 
-            try {
+        String token = authHeader.substring(7);
 
-                Claims claims = extractClaims(token);
-                String userId = claims.get("userId", String.class);
-                String email = claims.getSubject();
+        try {
+            // Extract and Parse JWT Claims
+            Claims claims = extractClaims(token);
+            String userId = claims.get("userId", String.class);
+            String email = claims.getSubject();
 
-                log.debug("userId: {} email : {}", userId, email);
+            log.debug("userId: {} email : {}", userId, email);
 
-                ServerHttpRequest modifiedRequest = request.mutate()
-                        .header("X-User-Id").build();
+            // Mutate request to add downstream headers
+            ServerRequest modifiedRequest = ServerRequest.from(request)
+                    .header("X-User-Id").build();
 
-                return chain.filter(exchange.mutate().request(modifiedRequest).build());
+            // Forward downstream
+            return next.handle(modifiedRequest);
 
-            } catch (Exception e) {
-                log.warn("Invalid JWT token : {}", token);
-                return unauthorizedResponse(exchange, "Invalid or expired token");
-            }
+        } catch (Exception e) {
+            log.warn("Invalid JWT token : {}", token);
+            return unauthorizedResponse("Invalid OR Expired token");
+        }
 
-        });
     }
 
     private boolean isPublicEndpoint(String path) {
@@ -80,10 +77,11 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
                 path.contains("/ws");
     }
 
-    private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, String message) {
+    private ServerResponse unauthorizedResponse(String message) {
         log.warn("Unauthorized: {}", message);
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        return exchange.getResponse().setComplete();
+        return ServerResponse.status(HttpStatus.UNAUTHORIZED)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ErrorBody(message));
     }
 
     private Claims extractClaims(String token) {
@@ -97,7 +95,7 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
     }
 
 
-    public static class Config {
+    private record ErrorBody(String error) {
 
     }
 
