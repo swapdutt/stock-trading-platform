@@ -58,14 +58,15 @@ public class UserService {
             throw new EmailAlreadyExistsException("409", "Requested Email : " + request.getEmail() + " already registered", HttpStatus.CONFLICT);
         }
 
-        User savedUser = userRepository.save(User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .walletBalance(request.getInitialDeposit() != null
-                        ? request.getInitialDeposit() : BigDecimal.valueOf(10000))
-                .build());
+        User user = new User();
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setWalletBalance(request.getInitialDeposit() != null
+                ? request.getInitialDeposit() : BigDecimal.valueOf(10000));
+
+        User savedUser = userRepository.save(user);
 
         log.info("User registered successfully : {}", savedUser.getId());
 
