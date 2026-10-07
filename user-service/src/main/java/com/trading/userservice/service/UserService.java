@@ -55,7 +55,8 @@ public class UserService {
         log.info("Registering user : {}", request.getEmail());
 
         if (Boolean.TRUE.equals(userRepository.existsByEmail(request.getEmail()))) {
-            throw new EmailAlreadyExistsException("409", "Requested Email : " + request.getEmail() + " already registered", HttpStatus.CONFLICT);
+            // throw new EmailAlreadyExistsException("409", "Requested Email : " + request.getEmail() + " already registered", HttpStatus.CONFLICT);
+            throw new RuntimeException("Requested Email : " + request.getEmail() + " already registered");
         }
 
         User user = new User();
