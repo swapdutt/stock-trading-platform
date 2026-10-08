@@ -45,7 +45,7 @@ public class UserService {
     private long refreshTokenExpiration;
 
 
-    private static final String USER_REGISTERED_TOPIC = "user.registered";
+    private static final String USER_REGISTERED_TOPIC = "user.register";
 
     /**
      * Register a new trader
