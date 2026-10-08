@@ -39,4 +39,30 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, exception.getStatus());
     }
 
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException exception) {
+        var guid = UUID.randomUUID().toString();
+        log.info("Global Exception: Invalid Credentials Exception : Error GUID = {}, Error message = {}", guid, exception.getMessage());
+
+        var response = new ErrorResponse(
+                guid, exception.getErrorCode(), exception.getErrorMessage(),
+                exception.getStatus().value(), exception.getStatus().name(),
+                LocalDateTime.now(ZoneId.systemDefault()));
+
+        return new ResponseEntity<>(response, exception.getStatus());
+    }
+
+    @ExceptionHandler(InsufficientWalletBalanceException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientWalletBalanceException(InsufficientWalletBalanceException exception) {
+        var guid = UUID.randomUUID().toString();
+        log.info("Global Exception: Insufficient Wallet Balance Exception : Error GUID = {}, Error message = {}", guid, exception.getMessage());
+
+        var response = new ErrorResponse(
+                guid, exception.getErrorCode(), exception.getErrorMessage(),
+                exception.getStatus().value(), exception.getStatus().name(),
+                LocalDateTime.now(ZoneId.systemDefault()));
+
+        return new ResponseEntity<>(response, exception.getStatus());
+    }
+
 }

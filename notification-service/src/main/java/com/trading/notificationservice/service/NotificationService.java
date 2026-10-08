@@ -11,12 +11,14 @@ import java.util.Map;
 @Service
 public class NotificationService {
 
+    private static final String USER_ID = "userId";
+
     @KafkaListener(topics = "order.executed")
     public void consumeOrderExecuted(@Payload Map<String, Object> payload) {
 
         try {
 
-            String userId = payload.get("userId").toString();
+            String userId = payload.get(USER_ID).toString();
             String type = payload.get("type").toString();
             String symbol = payload.get("symbol").toString();
             Object quantity = payload.get("quantity");
@@ -38,7 +40,7 @@ public class NotificationService {
 
         try {
 
-            String userId = payload.get("userId").toString();
+            String userId = payload.get(USER_ID).toString();
             String symbol = payload.get("symbol").toString();
             String reason = payload.get("reason").toString();
 
@@ -57,7 +59,7 @@ public class NotificationService {
 
         try {
 
-            String userId = payload.get("userId").toString();
+            String userId = payload.get(USER_ID).toString();
             String firstName = payload.get("firstName").toString();
             Object walletBalance = payload.get("walletBalance");
 

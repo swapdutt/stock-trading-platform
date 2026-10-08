@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +82,7 @@ public class OrderService {
             }
 
             savedOrder.setOrderStatus(OrderStatus.EXECUTED);
-            savedOrder.setExecutedAt(LocalDateTime.now());
+            savedOrder.setExecutedAt(LocalDateTime.now(ZoneId.systemDefault()));
             orderRepository.save(savedOrder);
 
             log.info("Order EXECUTED : {} {} x {} at {} ",

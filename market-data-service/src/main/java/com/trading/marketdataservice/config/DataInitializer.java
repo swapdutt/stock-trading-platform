@@ -19,6 +19,9 @@ public class DataInitializer implements CommandLineRunner {
 
     private final StockRepository stockRepository;
 
+    private static final String NASDAQ = "NASDAQ";
+    private static final String NSE = "NSE";
+
     @Override
     public void run(String... args) throws Exception {
 
@@ -31,15 +34,15 @@ public class DataInitializer implements CommandLineRunner {
 
         List<Stock> stocks = List.of(
                 // USA Stocks
-                new Stock("APPL", "Apple Inc.", BigDecimal.valueOf(189.50), "NASDAQ", "USD", true),
-                new Stock("GOOGL", "Alphabet Inc.", BigDecimal.valueOf(141.80), "NASDAQ", "USD", true),
-                new Stock("MSFT", "Microsoft CoOperation", BigDecimal.valueOf(378.90), "NASDAQ", "USD", true),
+                new Stock("APPL", "Apple Inc.", BigDecimal.valueOf(189.50), NASDAQ, "USD", true),
+                new Stock("GOOGL", "Alphabet Inc.", BigDecimal.valueOf(141.80), NASDAQ, "USD", true),
+                new Stock("MSFT", "Microsoft CoOperation", BigDecimal.valueOf(378.90), NASDAQ, "USD", true),
 
                 // India Stocks
-                new Stock("TCS", "Tata Consultancy Services", BigDecimal.valueOf(2850.00), "NSE", "INR", true),
-                new Stock("INFY", "Infosys", BigDecimal.valueOf(1650.00), "NSE", "INR", true),
-                new Stock("PHI", "Prudential Health Insurance", BigDecimal.valueOf(1890.50), "NSE", "INR", true),
-                new Stock("RELIANCE", "Reliance Industries", BigDecimal.valueOf(3920.00), "NSE", "INR", true)
+                new Stock("TCS", "Tata Consultancy Services", BigDecimal.valueOf(2850.00), NSE, "INR", true),
+                new Stock("INFY", "Infosys", BigDecimal.valueOf(1650.00), NSE, "INR", true),
+                new Stock("PHI", "Prudential Health Insurance", BigDecimal.valueOf(1890.50), NSE, "INR", true),
+                new Stock("RELIANCE", "Reliance Industries", BigDecimal.valueOf(3920.00), NSE, "INR", true)
         );
 
         stockRepository.saveAll(stocks);

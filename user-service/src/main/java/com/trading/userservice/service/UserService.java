@@ -6,6 +6,8 @@ import com.trading.userservice.dto.RegisterRequest;
 import com.trading.userservice.dto.UserResponse;
 import com.trading.userservice.entity.User;
 import com.trading.userservice.exception.EmailAlreadyExistsException;
+import com.trading.userservice.exception.InsufficientWalletBalanceException;
+import com.trading.userservice.exception.InvalidCredentialsException;
 import com.trading.userservice.exception.UserNotFoundException;
 import com.trading.userservice.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
@@ -47,6 +49,9 @@ public class UserService {
 
     private static final String USER_REGISTERED_TOPIC = "user.register";
 
+    private static final String USER_ID = "userId";
+    private static final String USER_NOT_FOUND = "User not found with id : ";
+
     /**
      * Register a new trader
      */
@@ -55,8 +60,7 @@ public class UserService {
         log.info("Registering user : {}", request.getEmail());
 
         if (Boolean.TRUE.equals(userRepository.existsByEmail(request.getEmail()))) {
-            // throw new EmailAlreadyExistsException("409", "Requested Email : " + request.getEmail() + " already registered", HttpStatus.CONFLICT);
-            throw new RuntimeException("Requested Email : " + request.getEmail() + " already registered");
+            throw new EmailAlreadyExistsException("409", "Requested Email : " + request.getEmail() + " already registered", HttpStatus.CONFLICT);
         }
 
         User user = new User();
@@ -73,7 +77,7 @@ public class UserService {
 
         // Publish Event : user.registered to Kafka
         Map<String, Object> userRegisteredEvent = new HashMap<>();
-        userRegisteredEvent.put("userId", savedUser.getId());
+        userRegisteredEvent.put(USER_ID, savedUser.getId());
         userRegisteredEvent.put("email", savedUser.getEmail());
         userRegisteredEvent.put("firstName", savedUser.getFirstName());
         userRegisteredEvent.put("lastName", savedUser.getLastName());
@@ -100,7 +104,7 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("404", "User not found with email id : " + request.getEmail(), HttpStatus.NOT_FOUND));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new InvalidCredentialsException("401", "Invalid credentials", HttpStatus.UNAUTHORIZED);
         } else {
             log.info("Login successfully : {}", user.getId());
         }
@@ -120,7 +124,7 @@ public class UserService {
     public UserResponse getUserProfileById(String userId) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("404", "User not found with id : " + userId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new UserNotFoundException("404", USER_NOT_FOUND + userId, HttpStatus.NOT_FOUND));
         return mapToUserResponse(user);
 
     }
@@ -133,7 +137,7 @@ public class UserService {
     public UserResponse addFunds(String userId, BigDecimal amount) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("404", "User not found with id : " + userId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new UserNotFoundException("404", USER_NOT_FOUND + userId, HttpStatus.NOT_FOUND));
         user.setWalletBalance(user.getWalletBalance().add(amount));
         log.info("Funds added : {}  successfully to user : {}", amount, userId);
         return mapToUserResponse(userRepository.save(user));
@@ -147,9 +151,9 @@ public class UserService {
     public UserResponse deductFunds(String userId, BigDecimal amount) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("404", "User not found with id : " + userId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new UserNotFoundException("404", USER_NOT_FOUND + userId, HttpStatus.NOT_FOUND));
         if (user.getWalletBalance().compareTo(amount) < 0) {
-            throw new RuntimeException("Insufficient wallet balance");
+            throw new InsufficientWalletBalanceException("404", "Insufficient Wallet Balance", HttpStatus.NOT_FOUND);
         }
         user.setWalletBalance(user.getWalletBalance().subtract(amount));
         log.info("Funds deducted : {}  successfully to user : {}", amount, userId);
@@ -164,7 +168,7 @@ public class UserService {
     public UserResponse creditFunds(String userId, BigDecimal amount) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("404", "User not found with id : " + userId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new UserNotFoundException("404", USER_NOT_FOUND + userId, HttpStatus.NOT_FOUND));
         user.setWalletBalance(user.getWalletBalance().add(amount));
         log.info("Funds credited : {}  successfully to user : {}", amount, userId);
         return mapToUserResponse(userRepository.save(user));
@@ -180,7 +184,7 @@ public class UserService {
     private String generateAccessToken(String id, String email) {
 
         return Jwts.builder()
-                .claim("userId", id)
+                .claim(USER_ID, id)
                 .subject(email)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
@@ -197,7 +201,7 @@ public class UserService {
     private String generateRefreshToken(String id) {
 
         return Jwts.builder()
-                .claim("userId", id)
+                .claim(USER_ID, id)
                 .subject(id)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
