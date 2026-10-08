@@ -17,6 +17,12 @@ import java.math.BigDecimal;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RegisterRequest {
 
+    @NotBlank(message = "First Name is required")
+    String firstName;
+
+    @NotBlank(message = "Last Name is required")
+    String lastName;
+
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
     String email;
@@ -24,12 +30,6 @@ public class RegisterRequest {
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
     String password;
-
-    @NotBlank(message = "First Name is required")
-    String firstName;
-
-    @NotBlank(message = "Last Name is required")
-    String lastName;
 
     BigDecimal initialDeposit = BigDecimal.valueOf(10000);
 

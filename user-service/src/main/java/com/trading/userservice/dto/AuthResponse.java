@@ -14,14 +14,14 @@ import java.math.BigDecimal;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AuthResponse {
 
+    String accessToken;
+    String refreshToken;
     String userId;
     String email;
     String password;
     String firstName;
     String lastName;
     BigDecimal walletBalance;
-    String accessToken;
-    String refreshToken;
     String tokenType = "Bearer";
 
 }

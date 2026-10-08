@@ -22,6 +22,6 @@ public class UserResponse {
     String lastName;
     BigDecimal walletBalance;
     UserStatus status;
-    LocalDateTime createAt;
+    LocalDateTime createdAt;
 
 }

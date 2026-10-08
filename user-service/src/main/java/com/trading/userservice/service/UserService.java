@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -34,7 +34,7 @@ import java.util.Map;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${jwt.secret}")
@@ -234,7 +234,7 @@ public class UserService {
         response.setLastName(user.getLastName());
         response.setWalletBalance(user.getWalletBalance());
         response.setStatus(user.getStatus());
-        response.setCreateAt(user.getCreateAt());
+        response.setCreatedAt(user.getCreatedAt());
 
         return response;
 

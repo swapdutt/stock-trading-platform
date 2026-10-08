@@ -40,6 +40,6 @@ public class User {
     UserStatus status = UserStatus.ACTIVE;
 
     @CreationTimestamp
-    LocalDateTime createAt;
+    LocalDateTime createdAt;
 
 }
