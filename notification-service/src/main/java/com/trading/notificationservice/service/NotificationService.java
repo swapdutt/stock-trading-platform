@@ -25,7 +25,7 @@ public class NotificationService {
             Object price = payload.get("price");
             Object totalAmount = payload.get("totalAmount");
 
-            sendNotification(userId, type.equals("BUY") ? "ORDER_EXECUTED - BUY" : "ORDER_EXECUTED - SELL",
+            sendNotification(userId, type.equals("BUY") ? "✅ ORDER_EXECUTED - BUY" : "✅ ORDER_EXECUTED - SELL",
                     String.format("%s %s shares of %s at %s. Total: %s", type, quantity, symbol, price, totalAmount));
 
         } catch (Exception e) {
@@ -44,13 +44,36 @@ public class NotificationService {
             String symbol = payload.get("symbol").toString();
             String reason = payload.get("reason").toString();
 
-            sendNotification(userId, "Order Failed",
+            sendNotification(userId, "❌ Order Failed",
                     String.format("Your order for %s has failed. Reason: %s", symbol, reason));
 
         } catch (Exception e) {
             log.error("Error in consuming order failure: {}", e.getMessage());
         }
 
+    }
+
+    @KafkaListener(topics = "order.flagged")
+    public void consumeOrderFlagged(
+            @Payload Map<String, Object> payload) {
+
+        try {
+            String userId = payload.get(USER_ID).toString();
+            String symbol = payload.get("symbol").toString();
+            String reason = payload.get("reason").toString();
+
+            sendNotification(userId,
+                    "🚨 Order Flagged by AI",
+                    String.format(
+                            "Your order for %s was flagged " +
+                                    "as suspicious. Reason: %s. " +
+                                    "Please contact support if this " +
+                                    "was a legitimate trade.",
+                            symbol, reason));
+        } catch (Exception e) {
+            log.error("Error sending fraud notification: {}",
+                    e.getMessage());
+        }
 
     }
 
@@ -63,11 +86,13 @@ public class NotificationService {
             String firstName = payload.get("firstName").toString();
             Object walletBalance = payload.get("walletBalance");
 
-            sendNotification(userId, "Welcome to Stock Trading Platform",
-                    String.format("Welcome %s! %s added to your wallet", firstName, walletBalance));
+            sendNotification(userId, "🎉 Welcome to Stock Trading Platform",
+                    String.format("Welcome %s! %s added to your wallet," +
+                            "₹%s has been added to your wallet." +
+                            "Start trading now!!", firstName, walletBalance));
 
         } catch (Exception e) {
-            log.error("Error in consuming user registration: {}", e.getMessage());
+            log.error("Error in sending welcome user registration: {}", e.getMessage());
         }
 
     }
@@ -85,7 +110,6 @@ public class NotificationService {
         /**
          * TODO : Implementation of sending notification through Email & SMS will be done later stage
          */
-
 
     }
 
