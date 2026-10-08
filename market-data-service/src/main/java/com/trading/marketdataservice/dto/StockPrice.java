@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class StockPriceDto {
+public class StockPrice {
 
     String symbol;
     String companyName;

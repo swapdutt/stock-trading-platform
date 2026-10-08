@@ -1,7 +1,6 @@
 package com.trading.marketdataservice.controller;
 
-import com.trading.marketdataservice.dto.StockPriceDto;
-import com.trading.marketdataservice.entity.Stock;
+import com.trading.marketdataservice.dto.StockPrice;
 import com.trading.marketdataservice.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,7 @@ public class MarketDataController {
      */
 
     @GetMapping(path = "/stocks")
-    public ResponseEntity<List<StockPriceDto>> getAllStocks() {
+    public ResponseEntity<List<StockPrice>> getAllStocks() {
         return ResponseEntity.ok(marketDataService.getAllPrices());
     }
 
@@ -35,18 +34,8 @@ public class MarketDataController {
      */
 
     @GetMapping(path = "/stocks/{symbol}")
-    public ResponseEntity<StockPriceDto> getStockPrice(@PathVariable String symbol) {
+    public ResponseEntity<StockPrice> getStockPrice(@PathVariable String symbol) {
         return ResponseEntity.ok(marketDataService.getStockPrice(symbol.toUpperCase()));
     }
-
-    /**
-     * Get all stocks. Shows which stocks are available for trading.
-     */
-
-    @GetMapping(path = "/stocks/list")
-    public ResponseEntity<List<Stock>> getStockPriceLists() {
-        return ResponseEntity.ok(marketDataService.getStockPriceLists());
-    }
-
 
 }

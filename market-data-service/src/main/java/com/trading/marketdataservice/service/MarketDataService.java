@@ -1,13 +1,9 @@
 package com.trading.marketdataservice.service;
 
-import com.trading.marketdataservice.dto.StockPriceDto;
-import com.trading.marketdataservice.entity.Stock;
+import com.trading.marketdataservice.dto.StockPrice;
 import com.trading.marketdataservice.exception.StockNotFoundException;
-import com.trading.marketdataservice.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -23,16 +19,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Simulates real time stock price updates.
+ * In production → connects to market data provider (NSE, BSE, NYSE)
+ * For demo → generates realistic price movements using random walk algorithm
+ * <p>
+ * Every 2 seconds:
+ * 1. Update stock prices (random walk)
+ * 2. Cache latest prices in Redis
+ * 3. Broadcast via WebSocket → clients see real time updates
+ * 4. Publish to Kafka → other services react to price changes
+ * </p>
+ *
+ */
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Order(2)
-public class MarketDataService implements CommandLineRunner {
+public class MarketDataService {
 
-    private final StockRepository stockRepository;
-    private final Map<String, StockPriceDto> stockPrices = new ConcurrentHashMap<>(); // ConcurrentHashMap is used here for thread safety
     private final Random random = new Random();
     private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
@@ -41,42 +47,51 @@ public class MarketDataService implements CommandLineRunner {
     private static final String PRICE_KEY_PREFIX = "stock:price:";
     private static final String PRICE_UPDATED_TOPIC = "stock.price.updated";
 
+    private final Map<String, StockPrice> stockPrices = new HashMap<>() {{
+        put("RELIANCE", new StockPrice("RELIANCE",
+                "Reliance Industries", BigDecimal.valueOf(2850.00),
+        BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.valueOf(2900.00),
+                BigDecimal.valueOf(2800.00),
+                BigDecimal.valueOf(2840.00), 1500000L,
+                LocalDateTime.now()));
+        put("TCS", new StockPrice("TCS",
+                "Tata Consultancy Services", BigDecimal.valueOf(3920.00),
+        BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.valueOf(3980.00),
+                BigDecimal.valueOf(3890.00),
+                BigDecimal.valueOf(3910.00), 800000L,
+                LocalDateTime.now()));
+        put("INFY", new StockPrice("INFY",
+                "Infosys", BigDecimal.valueOf(1650.00),
+        BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.valueOf(1680.00),
+                BigDecimal.valueOf(1630.00),
+                BigDecimal.valueOf(1645.00), 1200000L,
+                LocalDateTime.now()));
+        put("AAPL", new StockPrice("AAPL",
+                "Apple Inc", BigDecimal.valueOf(189.50),
+        BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.valueOf(191.00),
+                BigDecimal.valueOf(188.00),
+                BigDecimal.valueOf(189.00), 5000000L,
+                LocalDateTime.now()));
+        put("GOOGL", new StockPrice("GOOGL",
+                "Alphabet Inc", BigDecimal.valueOf(141.80),
+        BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.valueOf(143.00),
+                BigDecimal.valueOf(140.50),
+                BigDecimal.valueOf(141.20), 3000000L,
+                LocalDateTime.now()));
+        put("MSFT", new StockPrice("MSFT",
+                "Microsoft Corp", BigDecimal.valueOf(378.90),
+        BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.valueOf(381.00),
+                BigDecimal.valueOf(377.00),
+                BigDecimal.valueOf(378.00), 4000000L,
+                LocalDateTime.now()));
+    }} ;
 
-    /**
-     * Initialize the stock prices
-     */
-
-    @Override
-    public void run(String... args) {
-        log.info("Loading stock price");
-        List<Stock> stocks = stockRepository.findByActiveTrue();
-
-        if (stocks.isEmpty()) {
-            log.warn("No Active stocks found");
-            return;
-        }
-
-        stocks.forEach(stock -> {
-            StockPriceDto dto = new StockPriceDto();
-            dto.setSymbol(stock.getSymbol());
-            dto.setCompanyName(stock.getCompanyName());
-            dto.setPrice(stock.getInitialPrice());
-            dto.setChange(BigDecimal.ZERO);
-            dto.setChangePercent(BigDecimal.ZERO);
-            dto.setHigh(stock.getInitialPrice());
-            dto.setLow(stock.getInitialPrice());
-            dto.setOpen(stock.getInitialPrice());
-            dto.setVolume(0L);
-            dto.setTimestamp(LocalDateTime.now(ZoneId.systemDefault()));
-
-            stockPrices.put(stock.getSymbol(), dto);
-            log.info("Loaded Stock : {} at {}", stock.getSymbol(), stock.getInitialPrice());
-
-        });
-
-        log.info("Initialized Stocks : {}", stockPrices.size());
-
-    }
 
     /**
      * Scheduled price update - every 2 seconds
@@ -84,24 +99,18 @@ public class MarketDataService implements CommandLineRunner {
 
     @Scheduled(fixedRateString = "${market.price-update-interval}")
     public void updatePrices() {
-        log.info("Updating stock price");
-
-        if (stockPrices.isEmpty()) {
-            log.warn("No Stocks loaded");
-            return;
-        }
 
         stockPrices.forEach((symbol, currentPrice) -> {
             BigDecimal oldPrice = currentPrice.getPrice();
 
-            // +- 0.5 price movement
+            // Random price movement — up or down by 0-0.5%
             double priceMovement = (random.nextDouble() - 0.5) * 0.5;
             BigDecimal priceChange = oldPrice.multiply(BigDecimal.valueOf(priceMovement / 100))
                     .setScale(2, RoundingMode.HALF_UP);
 
             BigDecimal newPrice = oldPrice.add(priceChange).setScale(2, RoundingMode.HALF_UP);
 
-            // Prevent negative price
+            // Ensure price doesn't go negative
             if (newPrice.compareTo(BigDecimal.valueOf(1)) < 0) {
                 newPrice = BigDecimal.valueOf(1);
             }
@@ -129,13 +138,13 @@ public class MarketDataService implements CommandLineRunner {
              * Redis caching part
              */
 
-            // 1. Caching in Redis
+            // 1. Cache in Redis
             redisTemplate.opsForValue().set(PRICE_KEY_PREFIX + symbol, currentPrice);
 
-            // 2. Broadcast via WebSocket -> all clients
+            // 2. Broadcast via WebSocket -> all subscribed clients
             messagingTemplate.convertAndSend("/topic/prices" + symbol, currentPrice);
 
-            // Publish to Kafka
+            // 3. Publish to Kafka → Order Service needs current prices
             Map<String, Object> priceUpdatedEvent = new HashMap<>();
             priceUpdatedEvent.put("symbol", symbol);
             priceUpdatedEvent.put("price", newPrice);
@@ -152,7 +161,7 @@ public class MarketDataService implements CommandLineRunner {
      * Get all active stock prices
      */
 
-    public List<StockPriceDto> getAllPrices() {
+    public List<StockPrice> getAllPrices() {
         return stockPrices.values().stream().toList();
     }
 
@@ -160,15 +169,15 @@ public class MarketDataService implements CommandLineRunner {
      * Get current stock price
      */
 
-    public StockPriceDto getStockPrice(String symbol) {
+    public StockPrice getStockPrice(String symbol) {
 
         Object cached = redisTemplate.opsForValue().get(PRICE_KEY_PREFIX + symbol);
         if (cached != null) {
-            return (StockPriceDto) cached;
+            return (StockPrice) cached;
         }
 
         // Fallback
-        StockPriceDto priceDto = stockPrices.get(symbol.toUpperCase());
+        StockPrice priceDto = stockPrices.get(symbol.toUpperCase());
         if (priceDto == null) {
             throw new StockNotFoundException("404", "Stock not found: " + symbol, HttpStatus.NOT_FOUND);
 
@@ -176,11 +185,4 @@ public class MarketDataService implements CommandLineRunner {
         return priceDto;
     }
 
-    /**
-     * Get all stocks
-     */
-
-    public List<Stock> getStockPriceLists() {
-        return stockRepository.findByActiveTrue();
-    }
 }
