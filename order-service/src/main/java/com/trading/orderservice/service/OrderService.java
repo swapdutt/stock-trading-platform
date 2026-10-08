@@ -1,5 +1,6 @@
 package com.trading.orderservice.service;
 
+import com.trading.orderservice.client.AIServiceClient;
 import com.trading.orderservice.client.MarketDataClient;
 import com.trading.orderservice.client.UserServiceClient;
 import com.trading.orderservice.dto.OrderRequest;
@@ -30,10 +31,12 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MarketDataClient marketDataClient;
     private final UserServiceClient userServiceClient;
+    private final AIServiceClient aiServiceClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     private static final String ORDER_EXECUTED_TOPIC = "order.executed";
     private static final String ORDER_FAILED_TOPIC = "order.failed";
+    private static final String ORDER_FLAGGED_TOPIC = "order.flagged";
 
     /**
      * Place a BUY/SELL order
@@ -48,12 +51,6 @@ public class OrderService {
 
     public Order placeOrder(@Valid OrderRequest request) {
 
-        /**
-         * AI service integration is pending for scanning the trade
-         * whether the trade is fraud one or not. This will be implemented
-         * when the AI service implementation will start.
-         */
-
         log.info("Placing {} order : {} x {} for user: {}",
                 request.getOrderType(), request.getQuantity(), request.getSymbol(), request.getUserId());
 
@@ -61,17 +58,59 @@ public class OrderService {
         BigDecimal currentPrice = new BigDecimal(priceData.get("price").toString());
         BigDecimal totalAmount = currentPrice.multiply(BigDecimal.valueOf(request.getQuantity()));
 
-        // Create order
-        Order savedOrder = orderRepository.save(Order.builder()
-                .userId(request.getUserId())
-                .symbol(request.getSymbol())
-                .orderType(request.getOrderType())
-                .orderStatus(OrderStatus.PENDING)
-                .quantity(request.getQuantity())
-                .price(currentPrice)
-                .totalAmount(totalAmount).build());
+        // Create order as AI check in start
+        Order order = new Order();
+        order.setUserId(request.getUserId());
+        order.setSymbol(request.getSymbol());
+        order.setOrderType(request.getOrderType());
+        order.setOrderStatus(OrderStatus.AI_CHECK);
+        order.setQuantity(request.getQuantity());
+        order.setPrice(currentPrice);
+        order.setTotalAmount(totalAmount);
 
+        Order savedOrder = orderRepository.save(order);
         log.info("Order Created : {}", savedOrder.getId());
+
+        // AI fraud check
+        Map<String, Object> orderData = new HashMap<>();
+        orderData.put("orderId", savedOrder.getId());
+        orderData.put("userId", savedOrder.getUserId());
+        orderData.put("symbol", savedOrder.getSymbol());
+        orderData.put("type", savedOrder.getOrderType());
+        orderData.put("quantity", savedOrder.getQuantity());
+        orderData.put("totalAmount", savedOrder.getTotalAmount());
+        orderData.put("price", savedOrder.getPrice());
+
+        Long recentOrderCount = orderRepository.countByUserIdAndCreatedAtAfter(request.getUserId(), LocalDateTime.now(ZoneId.systemDefault()).minusHours(1));
+        orderData.put("recentOrderCount", recentOrderCount);
+
+        try {
+
+            Map<String, Object> aiResult = aiServiceClient.checkFraud(orderData);
+            Boolean isSuspicious = (Boolean) aiResult.getOrDefault("isSuspicious", Boolean.FALSE);
+            String aiReason = (String) aiResult.getOrDefault("reason", "");
+            Double fraudScore = Double.parseDouble(aiResult.getOrDefault("fraudScore", "0.0").toString());
+
+            log.info("AI Fraud Check - orderId: {} suspicious: {} score: {}", savedOrder.getId(), isSuspicious, fraudScore);
+
+            if (isSuspicious == Boolean.TRUE) {
+                // Flag order - don't execute
+                savedOrder.setOrderStatus(OrderStatus.FLAGGED);
+                savedOrder.setFlaggedByAI(Boolean.TRUE);
+                savedOrder.setAiReason(aiReason);
+                savedOrder.setFailureReason("Flagged by AI : " +aiReason);
+                orderRepository.save(savedOrder);
+
+                // Publish Flagged Event
+                publishOrderEvent(ORDER_FLAGGED_TOPIC, savedOrder, aiReason);
+
+                log.warn("Order FLAGGED by AI: {} reason: {}", savedOrder.getId(), aiReason);
+                return savedOrder;
+            }
+
+        } catch (Exception e) {
+            log.warn("AI service unavailable — proceeding without check: {}", e.getMessage());
+        }
 
         try {
 

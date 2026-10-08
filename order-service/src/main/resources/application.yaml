@@ -31,6 +31,10 @@ market:
   service:
     url: http://localhost:8082
 
+ai:
+  service:
+    url: http://localhost:8086
+
 management:
   endpoints:
     web:

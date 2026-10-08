@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Builder
 @Entity
 @Table(name = "orders")
 public class Order {
@@ -47,6 +46,11 @@ public class Order {
     BigDecimal totalAmount;
 
     String failureReason;
+
+    // AI-Fraud check result
+    Boolean flaggedByAI = Boolean.FALSE;
+
+    String aiReason;
 
     @CreationTimestamp
     LocalDateTime createdAt;
