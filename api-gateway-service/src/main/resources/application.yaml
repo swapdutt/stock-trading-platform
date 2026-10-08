@@ -3,51 +3,63 @@ spring:
     name: api-gateway-service
   cloud:
     gateway:
-      mvc:
-        routes:
-          # USER-SERVICE PUBLIC ENDPOINTS
-          - id: user-service-public
-            uri: 'http://localhost:8081'
-            predicates:
-              - Path=/api/v1/users/register, /api/v1/users/login
+      server:
+        webflux:
+          routes:
+            # USER-SERVICE PUBLIC ENDPOINTS
+            - id: user-service-public
+              order: -1
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/v1/users/register, /api/v1/users/login
+                - Method=POST
 
-          # USER-SERVICE PROTECTED ENDPOINTS
-          - id: user-service
-            uri: 'http://localhost:8081'
-            predicates:
-              - Path=/api/v1/users/**
-            filters:
-              - name: JwtAuthFilter
+            # USER-SERVICE PROTECTED ENDPOINTS
+            - id: user-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/v1/users/**
+              filters:
+                - name: JwtAuthFilter
 
-          # MARKET-DATA-SERVICE
-          - id: market-data-service
-            uri: 'http://localhost:8082'
-            predicates:
-              - Path=/api/v1/market/**
-            filters:
-              - name: JwtAuthFilter
+            # MARKET-DATA-SERVICE
+            - id: market-data-service
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/v1/market/**
+              filters:
+                - name: JwtAuthFilter
 
-          # WEBSOCKET
-          - id: market-websocket
-            uri: 'ws://localhost:8082'
-            predicates:
-              - Path=/ws/**
+            # WEBSOCKET
+            - id: market-websocket
+              order: -20
+              uri: http://localhost:8082
+              predicates:
+                - Path=/ws/**
+                - Header=Upgrade, (?i)websocket
 
-          # ORDER-SERVICE
-          - id: order-service
-            uri: 'http://localhost:8083'
-            predicates:
-              - Path=/api/v1/orders/**
-            filters:
-              - name: JwtAuthFilter
+            # SOCKJS
+            - id: market-sockjs
+              order: -10
+              uri: http://localhost:8082
+              predicates:
+                - Path=/ws, /ws/**
 
-          # PORTFOLIO-SERVICE
-          - id: portfolio-service
-            uri: 'http://localhost:8084'
-            predicates:
-              - Path=/api/v1/portfolio/**
-            filters:
-              - name: JwtAuthFilter
+            # ORDER-SERVICE
+            - id: order-service
+              uri: http://localhost:8083
+              predicates:
+                - Path=/api/v1/orders/**
+              filters:
+                - name: JwtAuthFilter
+
+            # PORTFOLIO-SERVICE
+            - id: portfolio-service
+              uri: http://localhost:8084
+              predicates:
+                - Path=/api/v1/portfolio/**
+              filters:
+                - name: JwtAuthFilter
 
 server:
   port: 8080

@@ -1,101 +1,87 @@
 package com.trading.apigatewayservice.filter;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.function.HandlerFilterFunction;
-import org.springframework.web.servlet.function.HandlerFunction;
-import org.springframework.web.servlet.function.ServerRequest;
-import org.springframework.web.servlet.function.ServerResponse;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
-import javax.crypto.SecretKey;
-import java.util.Objects;
+import java.util.List;
 
 @Slf4j
 @Component
-public class JwtAuthFilter implements HandlerFilterFunction<ServerResponse, ServerResponse> {
+public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Config> {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+    private final JwtParser jwtParser;
+
+    public JwtAuthFilter(@Value("${jwt.secret}") String secret) {
+        super(Config.class);
+        jwtParser = Jwts.parser()
+                .verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret)))
+                .build();
+    }
 
     @Override
-    public ServerResponse filter(ServerRequest request, HandlerFunction<ServerResponse> next) throws Exception {
+    public GatewayFilter apply(Config config) {
+        return (exchange, chain) -> {
+            List<String> authorization = exchange.getRequest().getHeaders()
+                    .get(HttpHeaders.AUTHORIZATION);
 
-        String path = request.path();
+            if (authorization == null || authorization.isEmpty()) {
+                return unauthorizedResponse(exchange, "Authorization Header missing");
+            }
 
-        // Skip JWT auth for public endpoints.
-        if (isPublicEndpoint(path)) {
-            log.debug("Public endpoint - skipping JWT authentication: {}", path);
-            return next.handle(request);
-        }
+            if (authorization.size() != 1) {
+                return unauthorizedResponse(exchange, "Invalid Authorization format");
+            }
 
-        // Validate Authorization Header presence
-        if (Objects.requireNonNull(request.headers().firstHeader("Authorization")).isEmpty()) {
-            log.warn("JWT authentication header is missing : {}", path);
-            return unauthorizedResponse("Authorization Header missing");
-        }
+            String header = authorization.getFirst();
+            if(header.length() <= 7 || !header.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                return unauthorizedResponse(exchange, "Invalid Authorization format");
+            }
 
-        String authHeader = request.headers().firstHeader("Authorization");
-        if (authHeader == null || !Objects.requireNonNull(authHeader).startsWith("Bearer ")) {
-            return unauthorizedResponse("Invalid Authorization format");
-        }
+            String token = header.substring(7).trim();
+            if (token.isEmpty()) {
+                return unauthorizedResponse(exchange, "Bearer token missing");
+            }
 
-        String token = authHeader.substring(7);
+            String userId;
+            try {
+                Claims claims = jwtParser.parseSignedClaims(token).getPayload();
+                userId = claims.get("userId", String.class);
+                if (userId == null || userId.isBlank()) {
+                    return unauthorizedResponse(exchange, "JWT user id claim missing");
+                }
+            } catch (JwtException | IllegalArgumentException exception) {
+                log.warn("Invalid or Expired JWT for path: {}", exchange.getRequest().getPath());
+                return unauthorizedResponse(exchange,"Invalid or Expired token");
+            }
 
-        try {
-            // Extract and Parse JWT Claims
-            Claims claims = extractClaims(token);
-            String userId = claims.get("userId", String.class);
-            String email = claims.getSubject();
+            ServerHttpRequest request = exchange.getRequest().mutate().headers(headers -> headers.set("X-User-Id", userId)).build();
+            return chain.filter(exchange.mutate().request(request).build());
 
-            log.debug("userId: {} email : {}", userId, email);
-
-            // Mutate request to add downstream headers
-            ServerRequest modifiedRequest = ServerRequest.from(request)
-                    .header("X-User-Id").build();
-
-            // Forward downstream
-            return next.handle(modifiedRequest);
-
-        } catch (Exception e) {
-            log.warn("Invalid JWT token : {}", token);
-            return unauthorizedResponse("Invalid OR Expired token");
-        }
-
+        };
     }
 
-    private boolean isPublicEndpoint(String path) {
-        return path.contains("/register") ||
-                path.contains("/login") ||
-                path.contains("/health") ||
-                path.contains("/ws");
-    }
-
-    private ServerResponse unauthorizedResponse(String message) {
+    private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, String message) {
         log.warn("Unauthorized: {}", message);
-        return ServerResponse.status(HttpStatus.UNAUTHORIZED)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(new ErrorBody(message));
-    }
-
-    private Claims extractClaims(String token) {
-        return Jwts.parser().verifyWith(getSignInKey())
-                .build().parseSignedClaims(token).getPayload();
-    }
-
-    private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        return exchange.getResponse().setComplete();
     }
 
 
-    private record ErrorBody(String error) {
+    public static class Config {
 
     }
 

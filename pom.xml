@@ -41,6 +41,7 @@
         <bcprov.jdk18on-version>1.86</bcprov.jdk18on-version>
         <netty-version>4.2.18.Final</netty-version>
         <jackson.annotations-version>2.22</jackson.annotations-version>
+        <tools.jackson-version>3.2.3</tools.jackson-version>
     </properties>
 
     <dependencies>
@@ -156,6 +157,16 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
             <version>${jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${tools.jackson-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${tools.jackson-version}</version>
         </dependency>
     </dependencies>
 
