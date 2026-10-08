@@ -24,7 +24,6 @@ public class UserController {
 
     @PostMapping(path = "/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Received request to register user: {}", request);
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.register(request));
     }
 
