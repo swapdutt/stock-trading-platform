@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,6 +23,7 @@ public class PortfolioEventConsumer {
 
     private final HoldingRepository holdingRepository;
 
+    @Transactional
     @KafkaListener(topics = "order.executed")
     public void consumeOrderExecuted(@Payload Map<String, Object> payload) {
 
