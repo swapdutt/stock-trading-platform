@@ -1,0 +1,14 @@
+{
+  "name": "stock-trading-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A dependency-free trading dashboard for the stock-trading-platform APIs.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/api.js && node --check public/demo.js && node --check public/trading.js",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

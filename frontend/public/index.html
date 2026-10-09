@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A simple workspace for simulated stock trading, your portfolio, and orders.">
+  <meta name="theme-color" content="#111c2e">
+  <title>StockDesk · Trading workspace</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to workspace</a>
+  <aside class="sidebar">
+    <a class="brand" href="#overview" aria-label="StockDesk overview"><img src="/favicon.svg" alt="" width="36" height="36"><span>StockDesk<span class="brand-caption">TRADING WORKSPACE</span></span></a>
+    <p class="nav-label">WORKSPACE</p>
+    <nav aria-label="Main navigation">
+      <a href="#overview" data-view="overview"><span class="nav-icon" data-icon="grid"></span>Overview</a>
+      <a href="#markets" data-view="markets"><span class="nav-icon" data-icon="chart"></span>Markets</a>
+      <a href="#portfolio" data-view="portfolio"><span class="nav-icon" data-icon="briefcase"></span>Portfolio</a>
+      <a href="#orders" data-view="orders"><span class="nav-icon" data-icon="list"></span>Orders<span class="nav-count" id="order-count">0</span></a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="simulator-note"><span data-icon="layers"></span><strong>A practice trading space</strong><p>Simulated prices. No exchange or brokerage connection.</p></div>
+      <div class="sidebar-account"><span class="avatar" id="side-avatar">DT</span><div><strong id="side-name">Demo Trader</strong><span id="side-account">Demo account</span></div></div>
+    </div>
+  </aside>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="breadcrumb"><span>Workspace</span><span class="crumb-separator">/</span><strong id="breadcrumb">Overview</strong></div>
+      <div class="topbar-actions"><span class="mode-tag" id="mode-tag">Demo mode</span><button class="button button-light" id="connection-button">Connect backend</button></div>
+    </header>
+    <main id="main" tabindex="-1">
+      <div class="page-title-row"><div><p class="eyebrow" id="greeting">YOUR TRADING DAY</p><h1 id="page-title">A view of your investments.</h1></div><div class="page-actions"><button class="icon-button" id="refresh-button" aria-label="Refresh account and prices" title="Refresh"><span data-icon="refresh"></span></button><button class="button button-primary" id="add-funds-button"><span data-icon="plus"></span>Add funds</button></div></div>
+      <div class="workspace-notice" id="workspace-notice"><span data-icon="info"></span><p><strong>You're in demo mode.</strong> Explore with sample funds and simulated trades.</p><button class="text-button" id="notice-connect">Use your account</button></div>
+      <div id="connection-error" class="error-banner" role="alert" hidden></div>
+      <section class="summary-grid" aria-label="Account summary">
+        <article class="summary-card"><span class="summary-label">Available funds<span data-icon="wallet"></span></span><strong id="wallet-value">—</strong><span class="summary-foot">Ready for your next trade</span></article>
+        <article class="summary-card"><span class="summary-label">Portfolio value<span data-icon="briefcase"></span></span><strong id="portfolio-value">—</strong><span class="summary-foot" id="holdings-caption">Your current holdings</span></article>
+        <article class="summary-card"><span class="summary-label">Total invested<span data-icon="layers"></span></span><strong id="invested-value">—</strong><span class="summary-foot">Cost of current holdings</span></article>
+        <article class="summary-card return-card"><span class="summary-label">Unrealized return<span data-icon="chart"></span></span><strong id="return-value">—</strong><span class="summary-foot" id="return-percent">—</span></article>
+      </section>
+      <section id="trading-workspace" class="trading-grid" aria-label="Markets and trading">
+        <div class="market-column">
+          <article class="quote-card" aria-label="Selected stock quote">
+            <div class="quote-top"><div class="quote-identity"><span class="stock-monogram" id="quote-monogram">R</span><div><h2 id="quote-symbol">RELIANCE</h2><p id="quote-name">Reliance Industries</p></div></div><span class="quote-label" id="quote-label">SAMPLE QUOTE</span></div>
+            <div class="quote-price-row"><strong id="quote-price">—</strong><span id="quote-change">—</span></div>
+            <div class="quote-chart" id="quote-chart"></div>
+            <div class="quote-bottom"><span id="chart-caption">Illustrative demo history</span><span>INR · Simulated prices</span></div>
+          </article>
+          <article class="panel market-panel">
+            <div class="panel-heading"><div><h2>Market watch</h2><p id="quotes-update">Sample quotes</p></div><button id="poll-button" class="text-button">Pause updates</button></div>
+            <label class="search-box"><span data-icon="search"></span><input id="market-search" type="search" aria-label="Search stocks" placeholder="Search symbol or company" autocomplete="off"><kbd>/</kbd></label>
+            <div class="table-scroll"><table class="market-table"><thead><tr><th scope="col">Company</th><th scope="col" class="numeric">Price</th><th scope="col" class="numeric">Change</th><th scope="col" class="trade-heading">Trade</th></tr></thead><tbody id="market-rows"></tbody></table></div>
+          </article>
+        </div>
+        <div class="trade-column">
+          <article class="panel order-panel">
+            <div class="panel-heading"><div><h2>Place an order</h2><p>Market order · Current quote</p></div><span class="small-icon" data-icon="exchange"></span></div>
+            <form id="order-form">
+              <div class="trade-toggle" role="group" aria-label="Order side"><button type="button" id="buy-button" aria-pressed="true">Buy</button><button type="button" id="sell-button" aria-pressed="false">Sell</button></div>
+              <label class="field-label" for="order-symbol">Stock</label><select id="order-symbol" name="symbol" required></select>
+              <div class="field-heading"><label class="field-label" for="order-quantity">Quantity</label><span id="owned-shares">0 shares held</span></div>
+              <div class="quantity-control"><button type="button" id="quantity-minus" aria-label="Decrease quantity">−</button><input id="order-quantity" name="quantity" type="number" min="1" max="2147483647" step="1" value="1" required inputmode="numeric"><button type="button" id="quantity-plus" aria-label="Increase quantity">+</button></div>
+              <div class="quote-facts"><div><span>Price per share</span><strong id="order-price">—</strong></div><div><span>Available funds</span><strong id="order-wallet">—</strong></div><div class="order-total"><span>Estimated total</span><strong id="order-total">—</strong></div></div>
+              <p class="order-help">Your order executes at the backend's current price. The final amount may change.</p>
+              <p id="order-validation" class="validation-message" aria-live="polite"></p>
+              <button class="button button-primary submit-order" type="submit" id="review-order-button">Review buy order</button>
+            </form>
+          </article>
+          <article class="panel stock-detail-panel"><h2>Quote details</h2><dl id="stock-facts"></dl><p class="muted-foot">Quotes are simulated by the platform.</p></article>
+        </div>
+      </section>
+      <section id="portfolio-section" class="panel" hidden aria-label="Your holdings"><div class="panel-heading"><div><h2>Your holdings</h2><p>Valued at the latest available quotes</p></div><span class="section-badge" id="holdings-count">0 stocks</span></div><div class="table-scroll"><table><thead><tr><th scope="col">Stock</th><th scope="col" class="numeric">Quantity</th><th scope="col" class="numeric">Avg. buy price</th><th scope="col" class="numeric">Current price</th><th scope="col" class="numeric">Value</th><th scope="col" class="numeric">Return</th><th scope="col">Trade</th></tr></thead><tbody id="holdings-rows"></tbody></table></div><p class="panel-note">After an executed order, holdings can take a few seconds to update.</p></section>
+      <section id="orders-section" class="panel orders-panel" aria-label="Order history">
+        <div class="panel-heading"><div><h2 id="orders-heading">Recent orders</h2><p>Execution status and AI flag details</p></div><a class="text-button" href="#orders" id="all-orders-link">View all orders</a><label class="order-filter" id="order-filter-wrap" hidden><span class="sr-only">Filter by status</span><select id="order-filter"><option value="ALL">All statuses</option><option value="EXECUTED">Executed</option><option value="FLAGGED">Flagged</option><option value="AI_CHECK">AI check</option><option value="PENDING">Pending</option><option value="FAILED">Failed</option></select></label></div>
+        <div class="table-scroll"><table><thead><tr><th scope="col">Stock / Time</th><th scope="col">Side</th><th scope="col" class="numeric">Quantity</th><th scope="col" class="numeric">Price</th><th scope="col" class="numeric">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Order details</span></th></tr></thead><tbody id="order-rows"></tbody></table></div>
+      </section>
+      <footer class="page-footer"><span>StockDesk <span class="footer-divider">·</span> A simulation, for practice.</span><span>Amounts displayed in INR</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="auth-dialog" class="modal auth-modal" aria-labelledby="auth-title">
+    <div class="modal-heading"><div><p class="eyebrow">YOUR LOCAL PLATFORM</p><h2 id="auth-title">Connect your account</h2></div><button class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button></div>
+    <p class="modal-description">Sign in to use your platform's funds, portfolio, and orders.</p><p class="gateway-caption" id="gateway-caption"></p>
+    <div class="auth-toggle" role="group" aria-label="Account access"><button type="button" id="login-tab" aria-pressed="true">Sign in</button><button type="button" id="register-tab" aria-pressed="false">Create account</button></div>
+    <form id="auth-form"><div id="register-fields" hidden><div class="two-fields"><label>First name<input name="firstName" autocomplete="given-name" maxlength="100" disabled></label><label>Last name<input name="lastName" autocomplete="family-name" maxlength="100" disabled></label></div></div><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" minlength="6" required maxlength="128"></label><label id="deposit-field" hidden>Initial deposit (INR)<input name="initialDeposit" type="number" min="0" max="9999999999.99" step="0.01" value="10000" inputmode="decimal" disabled></label><p id="auth-error" class="form-error" role="alert" hidden></p><button type="submit" class="button button-primary" id="auth-submit">Sign in</button></form>
+    <p class="modal-foot">Start the API gateway and backend services before signing in.</p>
+  </dialog>
+  <dialog id="funds-dialog" class="modal" aria-labelledby="funds-title"><div class="modal-heading"><h2 id="funds-title">Add funds</h2><button class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button></div><p class="modal-description" id="funds-description">Add practice funds to your demo wallet.</p><form id="funds-form"><label>Amount (INR)<input name="amount" id="funds-amount" type="number" min="0.01" max="9999999999.99" step="0.01" value="5000" inputmode="decimal" required></label><p id="funds-error" class="form-error" role="alert" hidden></p><button type="submit" class="button button-primary" id="funds-submit">Add funds</button></form></dialog>
+  <dialog id="review-dialog" class="modal" aria-labelledby="review-title"><div class="modal-heading"><h2 id="review-title">Review your order</h2><button class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button></div><div id="review-content"></div><p class="modal-description">This is a market order. The backend determines the execution price.</p><p id="review-error" class="form-error" role="alert" hidden></p><button id="confirm-order-button" class="button button-primary">Confirm order</button></dialog>
+  <dialog id="details-dialog" class="modal" aria-labelledby="details-title"><div class="modal-heading"><h2 id="details-title">Order details</h2><button class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button></div><div id="details-content"></div></dialog>
+  <dialog id="disconnect-dialog" class="modal" aria-labelledby="disconnect-title"><div class="modal-heading"><h2 id="disconnect-title">Your account</h2><button class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button></div><p class="modal-description" id="account-description"></p><button id="signout-button" class="button button-light full-width">Sign out &amp; return to demo</button></dialog>
+  <noscript><p class="noscript-message">Enable JavaScript to use the trading dashboard.</p></noscript>
+</body>
+</html>
