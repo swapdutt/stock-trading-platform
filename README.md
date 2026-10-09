@@ -2,121 +2,115 @@
 
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?logo=springboot&logoColor=white)
-![Maven](https://img.shields.io/badge/Maven-3.9.16-C71A36?logo=apachemaven&logoColor=white)
-![Kafka](https://img.shields.io/badge/Messaging-Apache_Kafka-231F20?logo=apachekafka&logoColor=white)
+![Kafka](https://img.shields.io/badge/Events-Apache_Kafka-231F20?logo=apachekafka&logoColor=white)
 ![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Cache-Redis-DC382D?logo=redis&logoColor=white)
-![Docker Compose](https://img.shields.io/badge/Infrastructure-Docker_Compose-2496ED?logo=docker&logoColor=white)
-![Status](https://img.shields.io/badge/Status-In_Development-yellow)
+![FastAPI](https://img.shields.io/badge/AI_Service-FastAPI-009688?logo=fastapi&logoColor=white)
+![Node.js](https://img.shields.io/badge/Frontend-Node.js_18%2B-339933?logo=nodedotjs&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Local_Development-yellow)
 
-A backend stock-trading simulation built around six Java microservices. The platform provides trader accounts, simulated market prices, BUY/SELL order processing, wallet operations, portfolio valuation, and Kafka-driven notification handling. A committed Docker Compose file provisions MySQL, Redis, and Kafka for local development.
+A stock-trading simulation with six Spring Boot microservices, a Python service for AI-assisted fraud screening, and **StockDesk**, a responsive trading dashboard. The platform combines JWT authentication, wallet operations, simulated quotes, BUY/SELL orders, and Kafka-driven portfolio updates.
 
-[Repository](https://github.com/swapdutt/stock-trading-platform) · [Report an issue](https://github.com/swapdutt/stock-trading-platform/issues)
+[Repository](https://github.com/swapdutt/stock-trading-platform) · [Frontend guide](frontend/README.md) · [Report an issue](https://github.com/swapdutt/stock-trading-platform/issues)
 
-> **Development status:** The repository contains the core service implementations, with build, configuration, and integration fixes still required. Read [Known issues and limitations](#known-issues-and-limitations) before starting the application. Prices are simulated; the repository contains no live exchange or brokerage integration. The AI service and email/SMS delivery remain unfinished.
+> **Project scope:** Prices and funds are simulated. No exchange, brokerage, payment provider, or live market-data feed is connected. The AI service calls Anthropic when configured; orders can proceed when AI checks fail. See [Current limitations](#current-limitations) for the implementation boundaries.
 
 ## Table of contents
 
-- [Overview](#overview)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Services and ports](#services-and-ports)
 - [Technology stack](#technology-stack)
-- [Repository structure](#repository-structure)
-- [Local setup](#local-setup)
+- [Repository layout](#repository-layout)
+- [Quick start: frontend demo](#quick-start-frontend-demo)
+- [Run the connected platform locally](#run-the-connected-platform-locally)
+- [Configuration reference](#configuration-reference)
 - [API reference](#api-reference)
-- [Example API workflow](#example-api-workflow)
+- [Example trading workflow](#example-trading-workflow)
+- [AI fraud screening](#ai-fraud-screening)
 - [Kafka events](#kafka-events)
-- [Market-price streaming](#market-price-streaming)
+- [Market data and streaming](#market-data-and-streaming)
 - [Testing and verification](#testing-and-verification)
-- [Known issues and limitations](#known-issues-and-limitations)
-- [Development priorities](#development-priorities)
+- [Troubleshooting](#troubleshooting)
+- [Current limitations](#current-limitations)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Overview
-
-The project demonstrates a trading backend that combines synchronous REST calls with asynchronous events:
-
-1. A trader registers or logs in through the user service.
-2. The market-data service loads active stocks from MySQL and simulates price changes every two seconds.
-3. The order service obtains a quote and deducts or credits the trader's wallet through the user service.
-4. An executed order is published to Kafka.
-5. The portfolio service consumes the event to update holdings, while the notification service writes notification messages to its logs.
-
-The Java services form a Maven multi-module project. Each service is a separate Spring Boot application with its own port. Docker Compose starts the three infrastructure containers; the Java services run separately through Maven, an IDE, or packaged JARs. The repository currently provides backend APIs; a frontend application is not included.
-
 ## Features
 
-The following capabilities are present in source code. Their availability depends on resolving the issues documented below.
-
-| Area | Implemented behavior | Current boundary |
-| --- | --- | --- |
-| Trader accounts | Registration, email/password login, profile lookup, BCrypt password hashing | Account-status enforcement and a token-refresh endpoint are absent |
-| Authentication | Access-token and refresh-token generation; gateway JWT verification filter | Gateway configuration and user-ID forwarding require fixes |
-| Wallet | Add, deduct, and credit funds using `BigDecimal` | Positive-amount validation and concurrency controls need work |
-| Market data | Active-stock catalogue, current quotes, simulated price updates, Redis caching | Stock seeding is manual; no external market-data feed is connected |
-| Orders | Immediate BUY/SELL processing at the current quote; `PENDING`, `EXECUTED`, and `FAILED` states; order history | Limit orders, partial fills, and an exchange matching engine are absent |
-| Portfolio | Holdings, weighted average purchase price, invested value, current value, and unrealized P&L | Updates arrive asynchronously through Kafka |
-| Notifications | Consumers for executed/failed orders and a registration listener; log-based messages | Registration topic mismatch; email/SMS delivery is pending |
-| Streaming | STOMP messaging with a SockJS endpoint and per-symbol price broadcasts | No bundled browser client |
-| Operations | Actuator `health` and `info` endpoint exposure; Docker Compose for MySQL, Redis, and Kafka | Java-service container images and a CI/CD workflow are not included |
-| AI | An `ai-service` directory exists | `main.py` is empty; fraud screening is mentioned in order-service comments but is not implemented |
+| Area | Included functionality |
+| --- | --- |
+| StockDesk dashboard | Wallet and portfolio summaries, searchable markets, quote charts, BUY/SELL tickets, holdings, and order history |
+| Demo mode | Practice funds and trades without starting the backend; data resets on page reload |
+| Accounts | Registration, login, BCrypt password hashing, profile lookup, access tokens, and refresh-token generation |
+| Wallet | Add funds; deduct funds for BUY orders; credit funds for SELL orders |
+| Market data | Six built-in sample stocks, scheduled random price movements, Redis caching, and quote APIs |
+| Orders | Quote-based execution, order history, ownership checks for individual order retrieval, and AI-flagged order details |
+| AI screening | FastAPI endpoint that sends trade details to Claude and returns a suspicion flag, score, reason, and recommendation |
+| Portfolio | Kafka-driven holdings, weighted average purchase price, invested capital, current value, and unrealized P&L |
+| Notifications | Log messages for executed, failed, and AI-flagged orders; registration listener |
+| Local infrastructure | Docker Compose for MySQL, Redis, and a single Kafka broker in KRaft mode |
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    Client["API client"] --> Gateway["API gateway · 8080"]
+    Browser["Browser"] --> Frontend["StockDesk / Node.js · 5173"]
+    Frontend -->|"REST proxy"| Gateway["API gateway · 8080"]
     Gateway --> Users["User service · 8081"]
     Gateway --> Market["Market-data service · 8082"]
     Gateway --> Orders["Order service · 8083"]
     Gateway --> Portfolio["Portfolio service · 8084"]
-    Orders -->|"REST: quote"| Market
-    Orders -->|"REST: wallet"| Users
-    Portfolio -->|"REST: valuation quotes"| Market
-    Users -->|"Registration events"| Kafka["Apache Kafka"]
-    Orders -->|"Order events"| Kafka
+    Orders -->|"Quotes"| Market
+    Orders -->|"Wallet operations"| Users
+    Orders -->|"Fraud check"| AI["AI service · 8086"]
+    Portfolio -->|"Valuation quotes"| Market
+    Users -->|"Registration events"| Kafka["Kafka"]
     Market -->|"Price events"| Kafka
+    Orders -->|"Order events"| Kafka
     Kafka -->|"Executed orders"| Portfolio
-    Kafka -->|"Notification events"| Notifications["Notification service · 8085"]
+    Kafka --> Notifications["Notification service · 8085"]
 ```
 
-The diagram shows the service connections declared in code. The gateway is intended to authenticate protected requests and supply `X-User-Id` to downstream controllers. Its current filter does not populate that header correctly.
+The frontend serves static assets and forwards an allowlist of REST requests to the gateway. It forwards the bearer token and omits client-supplied `X-User-Id` headers. The gateway validates the JWT, extracts the `userId` claim, and replaces that header before routing protected requests.
 
-The market-data service also writes quotes to Redis and broadcasts price updates to STOMP subscribers. Order and portfolio services use OpenFeign for their HTTP calls. Service URLs are configured directly as `localhost` addresses; no service-discovery component is included.
+Java services use direct configuration URLs rather than service discovery. Order and portfolio services use OpenFeign for HTTP calls. The AI service calls Anthropic externally; it is accessed directly by the order service and has no gateway route.
 
-### Data storage
+### Order processing
 
-The checked-in configuration uses two shared MySQL schemas:
+1. Fetch the current quote and calculate `price × quantity`.
+2. Save the order with status `AI_CHECK`.
+3. Send the order and its recent-order count to the AI service.
+4. If `isSuspicious` is `true`, mark the order `FLAGGED`, publish `order.flagged`, and return without changing the wallet.
+5. Otherwise, deduct the BUY amount or credit the SELL amount. Save `EXECUTED` and publish `order.executed`; execution exceptions lead to `FAILED` and `order.failed`.
+6. The portfolio consumer applies executed orders asynchronously. The notification consumer logs the corresponding message.
 
-| Store | Services | Data |
-| --- | --- | --- |
-| MySQL `user_db` | User, market data | `users`, `stocks` |
-| MySQL `order_db` | Order, portfolio | `orders`, `holdings` |
-| Redis | Market data | Quote keys such as `stock:price:TCS` |
-| In-memory map | Market data | Running simulation state loaded from active stocks at startup |
+| Order status | Meaning in the current implementation |
+| --- | --- |
+| `AI_CHECK` | Order saved before the synchronous screening call |
+| `FLAGGED` | AI marked the order suspicious; execution was skipped |
+| `EXECUTED` | Wallet operation completed and the order was saved as executed |
+| `FAILED` | An exception occurred in the execution block |
+| `PENDING` | Defined in the enum; the current placement flow starts at `AI_CHECK` |
 
-These are the actual configuration defaults. Separate databases per service would require configuration changes. JPA services use `spring.jpa.hibernate.ddl-auto=update`; versioned database migrations are not supplied.
-
-Docker Compose declares the `mysql-data` volume for MySQL storage and a `trading-network` bridge network for infrastructure communication. It declares no dedicated volumes for Redis or Kafka.
+An HTTP `201 Created` response can contain an `EXECUTED`, `FAILED`, or `FLAGGED` order. Always inspect `orderStatus` before treating a trade as successful.
 
 ## Services and ports
 
-| Module | Port | Responsibility | Dependencies |
+| Component | Port | Responsibility | Main dependencies |
 | --- | --- | --- | --- |
-| [`api-gateway-service`](api-gateway-service/) | `8080` | Route APIs and apply JWT filtering | User, market-data, order, and portfolio HTTP endpoints |
-| [`user-service`](user-service/) | `8081` | Accounts, token generation, profiles, and wallet balances | MySQL, Kafka |
-| [`market-data-service`](market-data-service/) | `8082` | Stock catalogue, quote simulation, caching, and streaming | MySQL, Redis, Kafka |
-| [`order-service`](order-service/) | `8083` | Order processing and order history | MySQL, Kafka, user service, market-data service |
-| [`portfolio-service`](portfolio-service/) | `8084` | Event-driven holdings and portfolio valuation | MySQL, Kafka, market-data service |
-| [`notification-service`](notification-service/) | `8085` | Consume events and log notification messages | Kafka |
+| [`frontend`](frontend/) | `5173` | Dashboard, demo mode, REST proxy | Node.js; gateway in connected mode |
+| [`api-gateway-service`](api-gateway-service/) | `8080` | REST routing, JWT validation, configured SockJS/WebSocket routes | Downstream HTTP services |
+| [`user-service`](user-service/) | `8081` | Accounts, JWTs, wallet | MySQL, Kafka |
+| [`market-data-service`](market-data-service/) | `8082` | Simulated quotes, Redis cache, price broadcasts | Redis, Kafka; configured MySQL datasource |
+| [`order-service`](order-service/) | `8083` | Order execution, history, fraud-check integration | MySQL, Kafka, user/market/AI services |
+| [`portfolio-service`](portfolio-service/) | `8084` | Holdings and valuation | MySQL, Kafka, market-data service |
+| [`notification-service`](notification-service/) | `8085` | Event consumers and notification logs | Kafka |
+| [`ai-service`](ai-service/) | `8086` | AI-assisted fraud assessment | Python dependencies; Anthropic credentials and connectivity |
 
-[`ai-service`](ai-service/) is outside the Maven reactor and has no runnable implementation or configured port.
+Every Java service exposes `/actuator/health` and `/actuator/info` on its own port. The gateway does not forward these endpoints to downstream services.
 
-### Infrastructure containers
-
-The following services are defined in [`docker-compose.yml`](docker-compose.yml):
+### Infrastructure and storage
 
 | Compose service | Image | Host endpoint | Container-network endpoint |
 | --- | --- | --- | --- |
@@ -124,467 +118,573 @@ The following services are defined in [`docker-compose.yml`](docker-compose.yml)
 | `redis` | `redis:latest` | `localhost:6379` | `redis:6379` |
 | `kafka` | `confluentinc/cp-kafka:7.4.0` | `localhost:9092` | `kafka:29092` |
 
-Kafka runs in KRaft mode with combined broker/controller roles and a single node. Its controller listener uses `kafka:9093` internally and is not published to the host. No ZooKeeper service is defined.
+| Storage | Usage |
+| --- | --- |
+| MySQL `user_db` | User accounts and wallet balances in `users` |
+| MySQL `order_db` | Orders in `orders` |
+| MySQL `portfolio_db` | Holdings in `holdings` |
+| MySQL `market_data_db` | Datasource configured for market data; the current stock catalogue is held in memory |
+| Redis | Quote keys such as `stock:price:TCS` |
+| Market-data process memory | Built-in stock list and simulation state; reset when the service restarts |
 
-The host endpoints match the Java applications' current `localhost` settings. Applications added to the Compose network would need the container-network endpoints instead.
+JPA uses `ddl-auto: update`. Versioned database migrations are not included. Compose declares a persistent MySQL volume; Redis and Kafka have no dedicated persistence volumes.
 
 ## Technology stack
 
-Versions below are taken from the committed POMs and Maven wrapper settings. They describe the repository's declared dependencies; a passing dependency-resolution or compatibility check is not implied.
+These versions are declared in the repository, rather than recommendations to upgrade to a particular release.
 
-| Technology | Declared version or configuration | Purpose |
-| --- | --- | --- |
-| Java | `25` | Java-service compilation target |
-| Spring Boot | `4.1.1` | Application framework |
-| Maven wrapper distribution | `3.9.16` | Build tooling |
-| Spring Cloud BOM | `2025.1.3` in gateway, order, and portfolio modules | Spring Cloud dependency management |
-| Spring Cloud Gateway | `4.3.5` | API routing and JWT filter integration |
-| Spring Data JPA / Hibernate | Managed through Spring Boot | Relational persistence |
-| MySQL server | Compose image `mysql:8.0` | Relational database server |
-| MySQL Connector/J | `26.7.0` | JDBC driver in user, order, and portfolio modules |
-| Apache Kafka | Compose image `confluentinc/cp-kafka:7.4.0`; root POM separately pins `kafka_2.13` to `4.3.1` | Event transport |
-| Redis / Spring Data Redis | Compose image `redis:latest`; Spring dependencies managed through Boot | Quote caching |
-| Docker Compose | Committed `docker-compose.yml`; engine/CLI versions are not pinned | Local infrastructure provisioning |
-| OpenFeign | Managed through the Spring Cloud BOM | Service-to-service HTTP calls |
-| JJWT | `0.13.0` | JWT signing and verification APIs |
-| Spring Security Crypto | `7.1.1` | BCrypt password hashing |
-| Lombok | `1.18.48` | Generated constructors, accessors, and builders |
-| Jackson | Root POM pins Jackson core/databind to `3.2.3` | JSON processing |
-| Spring WebSocket / STOMP / SockJS | Managed through Spring Boot | Price broadcasts |
+| Technology | Declared version / configuration |
+| --- | --- |
+| Java | `25` |
+| Spring Boot | `4.1.1` |
+| Maven wrapper | `3.9.16`, supplied inside each Java module |
+| Spring Cloud BOM | `2025.1.3` in gateway, order, and portfolio modules |
+| Gateway | `spring-cloud-starter-gateway-server-webflux` |
+| Persistence / HTTP clients | Spring Data JPA, MySQL Connector/J `26.7.0`, OpenFeign |
+| Authentication | JJWT `0.13.0`; Spring Security Crypto `7.1.1` |
+| Messaging / caching | Spring Kafka; Spring Data Redis |
+| Streaming | Spring WebSocket, STOMP, SockJS |
+| Frontend | HTML, CSS, JavaScript modules; Node.js `18+`; no npm dependencies |
+| Python API | FastAPI `0.104.1`, Uvicorn `0.24.0`, Pydantic `2.4.2` |
+| AI client | Anthropic Python SDK `0.18.1`; model string `claude-sonnet-4-6` in `main.py` |
 
-## Repository structure
+The parent POM overrides multiple library versions, including both Jackson 2 and Jackson 3 dependencies. Consult the resolved Maven dependency tree when diagnosing compatibility problems. A successful Java build has not been established by this documentation review.
+
+## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| [`pom.xml`](pom.xml) | Parent POM, six Java modules, shared properties, and dependencies |
-| [`docker-compose.yml`](docker-compose.yml) | MySQL, Redis, and Kafka containers, health checks, host ports, MySQL volume, and bridge network |
-| `api-gateway-service/` | Gateway application, JWT filter, and route configuration |
-| `user-service/` | Account/wallet controllers, DTOs, entities, repositories, and services |
-| `market-data-service/` | Quote simulation, stock APIs, Redis configuration, and WebSocket configuration |
-| `order-service/` | Order APIs, persistence, Kafka publishing, and Feign clients |
-| `portfolio-service/` | Holdings persistence, order-event consumer, and valuation APIs |
-| `notification-service/` | Kafka listeners and notification logging |
-| [`ai-service/main.py`](ai-service/main.py) | Empty file reserved for future implementation |
-| Each Java module's `src/main/resources/application.yaml` | Ports, infrastructure connections, and service settings |
-| Each Java module's `src/test/java/` | A Spring Boot `contextLoads()` test |
-| Each Java module's `.mvn/wrapper/`, `mvnw`, and `mvnw.cmd` | Maven wrapper files |
+| [`pom.xml`](pom.xml) | Parent Maven reactor, six Java modules, shared dependency versions |
+| [`docker-compose.yml`](docker-compose.yml) | Infrastructure containers, health checks, MySQL volume, bridge network |
+| `api-gateway-service/` | Reactive gateway application, route configuration, JWT filter |
+| `user-service/` | Account/wallet APIs, DTOs, persistence, token generation |
+| `market-data-service/` | Built-in quotes, scheduled simulation, Redis and STOMP configuration |
+| `order-service/` | Order API, persistence, Feign clients, Kafka publication |
+| `portfolio-service/` | Holding persistence, order-event consumer, portfolio valuation |
+| `notification-service/` | Registration and order-event listeners |
+| [`ai-service/main.py`](ai-service/main.py) | FastAPI application and Anthropic integration |
+| [`ai-service/requirements.txt`](ai-service/requirements.txt) | Pinned Python dependencies |
+| [`frontend/server.mjs`](frontend/server.mjs) | Static server and restricted REST proxy |
+| `frontend/public/` | Dashboard, styles, API client, demo account, trading helpers |
+| `frontend/tests/` | Node.js tests for API/proxy contracts and trading helpers |
+| Each Java module's `src/main/resources/application.yaml` | Service port, infrastructure connections, local settings |
+| Each Java module's `src/test/java/` | Spring Boot application-context test |
 
-The root directory has no Maven wrapper. The repository includes infrastructure Compose configuration, but does not currently include Java-service Dockerfiles, an OpenAPI specification, a Postman collection, or a frontend build.
+The frontend and AI service run independently of Maven. Docker Compose provisions infrastructure only; it does not launch the application services.
 
-## Local setup
+## Quick start: frontend demo
 
-> Complete the [build and startup corrections](#build-and-startup-corrections) first. The commands in this section describe the development workflow after those corrections; the unmodified checkout is not presented as a verified runnable release.
-
-### 1. Prerequisites
-
-| Requirement | Local expectation |
-| --- | --- |
-| JDK | Java `25`; ensure Maven uses the same JDK |
-| Git | Available on the command line |
-| Maven | `3.9.16`, or a service module's wrapper |
-| Docker / Compose | A running Docker engine and the `docker compose` CLI for the bundled infrastructure |
-| Available ports | `3306`, `6379`, `9092`, and `8080`–`8085` |
-| API tools | cURL; Python 3 for the example secret generation and response parsing |
-
-Use the bundled Compose file to provision MySQL, Kafka, and Redis, or supply equivalent existing services at the configured addresses. The instructions below use Compose. If Java services run outside the host machine, update their connection settings and the Kafka listener address they use.
-
-### 2. Clone the project
+Install Node.js 18 or newer, then run:
 
 ```bash
 git clone https://github.com/swapdutt/stock-trading-platform.git
-cd stock-trading-platform
-java -version
+cd stock-trading-platform/frontend
+npm start
 ```
 
-### 3. Start the infrastructure
+Open **[http://localhost:5173](http://localhost:5173)**. No `npm install`, Java service, database, or AI account is needed for demo mode.
 
-From the repository root:
+The dashboard opens with sample holdings, orders, quotes, and a practice wallet. Try adding funds, buying/selling shares, searching stocks, and viewing order details. Demo data is held in memory and resets on reload. Demo AI flags are illustrative and do not call the AI service.
+
+## Run the connected platform locally
+
+### 1. Prerequisites
+
+| Requirement | Purpose |
+| --- | --- |
+| JDK `25` | Compile and run the Java services; check the JDK reported by Maven |
+| Maven or module wrapper | Build the reactor; wrappers request Maven `3.9.16` |
+| Docker with Compose | Start the bundled MySQL, Redis, and Kafka infrastructure |
+| Node.js `18+` | Run StockDesk |
+| Python | Run the AI service and the response-parsing examples; the repository does not pin an interpreter version |
+| Git and cURL | Clone the project and exercise APIs |
+| Network access | Resolve Maven/Python dependencies; reach Anthropic for provider-backed checks |
+
+Reserve ports `3306`, `6379`, `9092`, `5173`, and `8080`–`8086`. The remaining setup commands assume the **repository root**, unless another directory is shown.
+
+### 2. Start infrastructure
 
 ```bash
-docker --version
-docker compose version
 docker compose up -d mysql redis kafka
 docker compose ps
 docker compose logs --tail=100 mysql redis kafka
 ```
 
-The Compose file configures health checks for all three containers. Wait for them to report healthy before starting the Java applications.
+Wait for the infrastructure health checks to pass. The committed MySQL root password is `root`; Java datasource passwords are blank in YAML, so supply the environment override below.
 
-| Infrastructure setting | Committed value |
-| --- | --- |
-| MySQL root password | `root` |
-| MySQL named volume | `mysql-data`, mounted at `/var/lib/mysql` |
-| Kafka metadata mode | KRaft; no ZooKeeper container |
-| Kafka host listener | `localhost:9092` |
-| Kafka internal listener | `kafka:29092` |
-| Kafka topic auto-creation | Enabled |
-| Kafka offsets/transaction-state replication | `1` for the single broker |
-| Kafka log retention | `168` hours |
+### 3. Prepare databases and Java configuration
 
-The fixed container names are `mysql`, `redis`, and `kafka`. Existing containers with those names, or processes using the published host ports, can prevent startup. Adjust the Compose file and application settings together if needed.
-
-### 4. Prepare MySQL
-
-Open a session inside the MySQL container and enter `root` at the password prompt:
+Open MySQL and enter `root` at the password prompt:
 
 ```bash
 docker compose exec mysql mysql -u root -p
 ```
 
-Create the schemas used by the default configuration:
-
 ```sql
 CREATE DATABASE IF NOT EXISTS user_db;
 CREATE DATABASE IF NOT EXISTS order_db;
+CREATE DATABASE IF NOT EXISTS portfolio_db;
+CREATE DATABASE IF NOT EXISTS market_data_db;
 ```
 
-The Java YAML files configure `root` with an empty password, while Compose configures the MySQL password as `root`. Set `SPRING_DATASOURCE_PASSWORD=root` for the JPA applications when using this Compose configuration. The environment example below supplies that value. For an existing MySQL installation, use its credentials instead.
+The JDBC URLs also specify `createDatabaseIfNotExist=true`. No stock seeding is required: the market-data service already defines its sample stocks in Java.
 
-### 5. Configure credentials and connections
-
-The following example uses Bash. Generate the JWT secret once and use the **same value** in both the user and gateway applications:
+For Bash, configure the service terminals or your IDE run configurations with:
 
 ```bash
-export JWT_SECRET="$(python3 -c 'import base64,secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())')"
 export SPRING_DATASOURCE_USERNAME=root
 export SPRING_DATASOURCE_PASSWORD=root
+export SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+export JWT_SECRET="$(python3 -c 'import base64,secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())')"
 ```
 
-Make these values available to every relevant service terminal, or configure them in your IDE's run configurations. Keep local credentials out of version control.
+Generate `JWT_SECRET` **once** and supply that same value to user service and gateway. Apply the appropriate variables in every service terminal; separately opened terminals do not inherit another terminal's exports. The checked-in YAML contains a shared development signing key, which this override replaces.
 
-| Setting | Default or expected value | Applies to |
-| --- | --- | --- |
-| `JWT_SECRET` | Required Base64-encoded HMAC key; blank in committed YAML | User, gateway |
-| `SPRING_DATASOURCE_USERNAME` | `root` in YAML | User, market data, order, portfolio |
-| `SPRING_DATASOURCE_PASSWORD` | `root` for bundled Compose; blank in Java YAML | User, market data, order, portfolio |
-| `SPRING_DATASOURCE_URL` | JDBC URL for `user_db` or `order_db`, as listed above | Each JPA service independently |
-| `SPRING_KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | User, market data, order, portfolio, notifications |
-| `SPRING_DATA_REDIS_HOST` | `localhost` | Market data |
-| `SPRING_DATA_REDIS_PORT` | `6379` | Market data |
-| `USER_SERVICE_URL` | `http://localhost:8081` | Order |
-| `MARKET_SERVICE_URL` | `http://localhost:8082` | Order, portfolio |
-| `MARKET_PRICE_UPDATE_INTERVAL` | `2000` milliseconds | Market data |
+Set `SPRING_KAFKA_BOOTSTRAP_SERVERS` for notification service as well: its YAML currently uses the singular `bootstrap-server` property instead of `bootstrap-servers`.
 
-Gateway destination URLs are declared separately in its `application.yaml`; update those routes when changing the deployment topology.
+<details>
+<summary>Optional: create Kafka topics explicitly</summary>
 
-The configured access-token lifetime is `86400000` milliseconds (**24 hours**), and the refresh-token lifetime is `604800000` milliseconds (**7 days**). The comments beside these values in the current YAML are inaccurate. No refresh-token exchange endpoint is implemented.
-
-### 6. Prepare Kafka topics
-
-The Kafka container supplies the command-line tools. Create the application's topics explicitly:
+The broker enables automatic topic creation. These commands also verify connectivity:
 
 ```bash
-for topic in user.registered order.executed order.failed stock.price.updated; do
+for topic in user.register order.executed order.failed order.flagged stock.price.updated; do
   docker compose exec -T kafka kafka-topics --bootstrap-server kafka:29092 \
     --create --if-not-exists --topic "$topic" \
     --partitions 1 --replication-factor 1
 done
 ```
 
-The Compose broker enables automatic topic creation; explicitly creating them also checks broker connectivity. Replication factor `1` matches its single-node configuration. The notification registration listener must be corrected to use `user.registered`; creating the topics alone does not fix that mismatch.
+Replication factor `1` matches the single broker in the Compose file.
 
-### 7. Build the Java modules
+</details>
 
-From the repository root, with Maven installed:
+### 4. Build the Java services
 
 ```bash
+java -version
+mvn -version
 mvn --batch-mode -DskipTests clean package
 ```
 
-Alternatively, use the user module's wrapper to build the root reactor:
+If Maven is not installed, use a module wrapper from the root:
 
 ```bash
 bash user-service/mvnw --batch-mode -f pom.xml -DskipTests clean package
 ```
 
-On Windows:
+Windows wrapper equivalent:
 
 ```powershell
 .\user-service\mvnw.cmd --batch-mode -f pom.xml -DskipTests clean package
 ```
 
-Skipping tests in this first packaging step is intentional: the committed tests load application contexts and need suitable configuration and external services.
+There is no root-level `mvnw`. The initial package command skips the application-context tests; run them separately after configuring infrastructure. If dependency resolution fails, check the committed version coordinates and Maven repository access before attempting to launch services.
 
-### 8. Start the applications
+### 5. Start the AI service
 
-Start infrastructure first, then run each command in a separate terminal from the repository root. Ensure the credentials configured above are available in those terminals.
+For provider-backed screening, first follow [AI credential configuration](#ai-credential-configuration). Then create an isolated Python environment:
 
 ```bash
-# User service
-mvn -pl user-service spring-boot:run
-
-# Market-data service
-mvn -pl market-data-service spring-boot:run
-
-# Portfolio service
-mvn -pl portfolio-service spring-boot:run
-
-# Notification service
-mvn -pl notification-service spring-boot:run
-
-# Order service
-mvn -pl order-service spring-boot:run
-
-# API gateway
-mvn -pl api-gateway-service spring-boot:run
+cd ai-service
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python main.py
 ```
 
-Use `bash user-service/mvnw -f pom.xml` in place of `mvn` when using the wrapper from the root. Compose does not start these Java services. After packaging, an executable JAR can also be launched directly, for example:
+On Windows, activate with `.venv\Scripts\Activate.ps1` instead of `source`. Alternatively, from `ai-service/`, run `python -m uvicorn main:app --host 127.0.0.1 --port 8086` after activating the environment.
+
+Check **[http://localhost:8086/health](http://localhost:8086/health)** and the interactive API at **[http://localhost:8086/docs](http://localhost:8086/docs)**. Provider connectivity must be checked separately; `/health` does not call Anthropic.
+
+The order service can run without the AI service, but a failed AI call allows execution to continue. That behavior does not demonstrate successful fraud screening.
+
+### 6. Start the Java applications
+
+Run each command in a separate terminal from the root, with the configuration from step 3. Start user and market services before placing orders; start portfolio and notification consumers before the smoke test.
+
+| Application | Command |
+| --- | --- |
+| User | `mvn -pl user-service spring-boot:run` |
+| Market data | `mvn -pl market-data-service spring-boot:run` |
+| Portfolio | `mvn -pl portfolio-service spring-boot:run` |
+| Notifications | `mvn -pl notification-service spring-boot:run` |
+| Orders | `mvn -pl order-service spring-boot:run` |
+| Gateway | `mvn -pl api-gateway-service spring-boot:run` |
+
+For wrapper execution, replace `mvn` with `bash user-service/mvnw -f pom.xml`. Packaged services can also run as JARs, for example:
 
 ```bash
 java -jar user-service/target/user-service-1.0.0.jar
 ```
 
-### 9. Seed a stock for the simulation
-
-The current `DataInitializer` is empty. After the corrected market-data application has created the `stocks` table, stop that application and insert a sample stock in MySQL:
-
-```sql
-USE user_db;
-
-INSERT INTO stocks
-    (symbol, company_name, initial_price, exchange, currency, active)
-VALUES
-    ('TCS', 'Tata Consultancy Services', 3500.00, 'NSE', 'INR', TRUE);
-```
-
-This is illustrative local seed data; the price is not a current market quote. Run the insert once for a fresh database, or update an existing row instead. Restart the market-data service so it reloads the active stock. Adding a row while the service is running does not populate its existing in-memory simulation map.
-
-### 10. Check service health
-
-For example:
+### 7. Connect StockDesk
 
 ```bash
-curl --fail-with-body http://localhost:8081/actuator/health
-curl --fail-with-body http://localhost:8082/actuator/health
-curl --fail-with-body http://localhost:8083/actuator/health
+cd frontend
+npm start
 ```
 
-All six modules configure Actuator exposure for `health` and `info`. A successful health response does not establish that cross-service trading and event processing work; verify the API workflow as well.
+Open [http://localhost:5173](http://localhost:5173), click **Connect backend**, and register or sign in. The browser communicates with the local frontend server, which forwards requests to `http://localhost:8080`; browser CORS changes are not required for this workflow.
 
-### Infrastructure logs and shutdown
+Connected mode refreshes account, quotes, orders, and portfolio data every five seconds. You can also refresh manually or pause updates. Access tokens remain in memory, so reloading requires signing in again. Charts show quotes observed during the browser session.
+
+### 8. Stop the applications
+
+Use `Ctrl+C` in each application terminal, then stop infrastructure:
 
 ```bash
-# Follow infrastructure logs
-docker compose logs -f mysql redis kafka
-
-# Stop and remove the infrastructure containers
 docker compose down
 ```
 
-Stop the Java processes in their own terminals. Normal `docker compose down` preserves the declared MySQL named volume. The Compose file does not declare persistent volumes for Kafka or Redis, so do not rely on their data surviving container recreation.
+This preserves the named MySQL volume. Avoid `docker compose down -v` unless you intend to delete the stored local data.
+
+## Configuration reference
+
+| Environment variable | Default / value | Applies to |
+| --- | --- | --- |
+| `JWT_SECRET` | Same Base64-encoded HMAC secret in both applications | User, gateway |
+| `SPRING_DATASOURCE_USERNAME` | `root` | User, market data, order, portfolio |
+| `SPRING_DATASOURCE_PASSWORD` | `root` for bundled Compose; blank in Java YAML | User, market data, order, portfolio |
+| `SPRING_DATASOURCE_URL` | JDBC URL for each service's database | Each datasource independently |
+| `SPRING_KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | All Kafka producers and consumers |
+| `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` | `localhost` / `6379` | Market data |
+| `USER_SERVICE_URL` | `http://localhost:8081` | Order |
+| `MARKET_SERVICE_URL` | `http://localhost:8082` | Order, portfolio |
+| `AI_SERVICE_URL` | `http://localhost:8086` | Order |
+| `GATEWAY_URL` | `http://localhost:8080`; HTTP(S) origin without an added path | Frontend server |
+| `HOST` / `PORT` | `127.0.0.1` / `5173` | Frontend server |
+| `ANTHROPIC_API_KEY` | Requires the initialization change documented below | AI service |
+
+Additional YAML settings:
+
+- `market.price-update-interval: 2000` sets the simulation interval in milliseconds.
+- `jwt.expiration: 86400000` means **24 hours** for access tokens.
+- `jwt.refreshTokenExpiration: 604800000` means **7 days** for refresh tokens. The adjacent YAML comments are inaccurate; no refresh exchange endpoint is implemented.
+- Gateway destination URLs are literal route configuration values. Change those routes separately when moving services off `localhost`.
+
+For a different frontend/gateway address in Bash:
+
+```bash
+GATEWAY_URL=http://127.0.0.1:8080 PORT=5173 npm --prefix frontend start
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:GATEWAY_URL = "http://127.0.0.1:8080"
+$env:PORT = "5173"
+npm --prefix frontend start
+```
+
+The frontend does not automatically load `.env` files. If applications are containerized later, use container-network hostnames rather than assuming their `localhost` addresses refer to the host machine.
 
 ## API reference
 
-The table uses the gateway base URL, `http://localhost:8080`. Paths are copied from the service controllers. Gateway access depends on correcting its route and authentication configuration.
+**Gateway base URL:** `http://localhost:8080`
 
-Protected requests should carry:
+Except for registration and login, the REST routes below require `Authorization: Bearer <accessToken>` at the gateway. Clients should use the access token returned by authentication; the gateway supplies `X-User-Id`.
 
-```http
-Authorization: Bearer <accessToken>
-```
+### Accounts and wallet
 
-Controllers that require `X-User-Id` expect the gateway to derive it from the verified token. A caller should not be treated as a trusted source for that identity. Direct service ports are useful for local diagnostics, but the backend services currently do not independently validate JWTs.
+| Method | Path | Input / purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/users/register` | Public; `firstName`, `lastName`, `email`, `password`, optional `initialDeposit` |
+| `POST` | `/api/v1/users/login` | Public; `email`, `password` |
+| `GET` | `/api/v1/users/userDetail` | Current authenticated user's profile and wallet |
+| `GET` | `/api/v1/users/{userId}` | Profile by ID |
+| `POST` | `/api/v1/users/{userId}/funds/add?amount=5000.00` | Add funds |
+| `POST` | `/api/v1/users/{userId}/funds/deduct?amount=100.00` | Deduct funds; used by order service |
+| `POST` | `/api/v1/users/{userId}/funds/credit?amount=100.00` | Credit funds; used by order service |
 
-| Service | Method | Path | Request / behavior |
+Registration defaults to a simulated deposit of `10000`. Names and credentials are required, email must be valid, and passwords must have at least six characters. Authentication responses include `accessToken`, `refreshToken`, `tokenType`, `userId`, identity fields, and `walletBalance`.
+
+### Market, orders, and portfolio
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/market/stocks` | All current sample quotes |
+| `GET` | `/api/v1/market/stocks/{symbol}` | Quote for a symbol; lookup normalizes to uppercase |
+| `POST` | `/api/v1/orders/` | Submit `symbol`, `orderType` (`BUY` or `SELL`), and integer `quantity` |
+| `GET` | `/api/v1/orders/current-order-list` | Current user's orders, newest first |
+| `GET` | `/api/v1/orders/{orderId}` | Individual order; returns `403` for a different owner |
+| `GET` | `/api/v1/portfolio/current-portfolio` | Current user's holdings and valuation |
+| `GET` | `/api/v1/portfolio/{userId}` | Portfolio by ID; intended for internal lookup |
+
+Preserve the **trailing slash** on `POST /api/v1/orders/` and the case of `userDetail`. The controller replaces any supplied order `userId` with the gateway-derived identity.
+
+Portfolio responses contain `userId`, `holdings`, `totalInvested`, `currentValue`, `totalPnl`, `totalPnlPercent`, and `isProfit`. Holding items include `symbol`, `quantity`, `averageBuyPrice`, `currentPrice`, `currentValue`, `invested`, `pnlPercent`, and `isProfit`.
+
+The gateway protects broad user and portfolio paths, but those controllers do not consistently check ownership for path IDs. The frontend proxy exposes only its required routes and does not expose wallet deduction/credit or arbitrary portfolio lookup.
+
+### AI and operational endpoints
+
+| Base URL | Method | Path | Purpose |
 | --- | --- | --- | --- |
-| User | `POST` | `/api/v1/users/register` | Public; JSON: `email`, `password`, `firstName`, `lastName`, optional `initialDeposit`; returns `201` with authentication response |
-| User | `POST` | `/api/v1/users/login` | Public; JSON: `email`, `password`; returns authentication response |
-| User | `GET` | `/api/v1/users/userDetail` | Current user's profile; requires `X-User-Id` downstream |
-| User | `GET` | `/api/v1/users/{userId}` | Profile lookup by ID |
-| User | `POST` | `/api/v1/users/{userId}/funds/add?amount=5000` | Add funds; `amount` is a query parameter |
-| User | `POST` | `/api/v1/users/{userId}/funds/deduct?amount=500` | Deduct funds; used by order processing |
-| User | `POST` | `/api/v1/users/{userId}/funds/credit?amount=500` | Credit funds; used by order processing |
-| Market data | `GET` | `/api/v1/market/stocks` | Current quote DTOs for loaded active stocks |
-| Market data | `GET` | `/api/v1/market/stocks/list` | Active-stock catalogue from MySQL |
-| Market data | `GET` | `/api/v1/market/stocks/{symbol}` | Current quote; symbol is converted to uppercase |
-| Order | `POST` | `/api/v1/orders/` | JSON: `symbol`, `orderType`, `quantity`; controller assigns the user ID from `X-User-Id` |
-| Order | `GET` | `/api/v1/orders/{orderId}` | Order details; compares order owner with `X-User-Id` and returns `403` on mismatch |
-| Order | `GET` | `/api/v1/orders/current-order-list` | Current user's orders, newest first; requires `X-User-Id` |
-| Portfolio | `GET` | `/api/v1/portfolio/current-portfolio` | Current user's holdings and valuation; requires `X-User-Id` |
-| Portfolio | `GET` | `/api/v1/portfolio/{userId}` | Portfolio lookup by ID |
+| `http://localhost:8086` | `GET` | `/health` | AI process health; no provider check |
+| `http://localhost:8086` | `POST` | `/api/fraud/check` | Fraud assessment; schema below |
+| `http://localhost:8086` | `GET` | `/docs` | FastAPI interactive documentation |
+| Each Java service | `GET` | `/actuator/health` | Service health |
+| Each Java service | `GET` | `/actuator/info` | Exposed info endpoint; additional info is not configured |
 
-**Request details:** Registration and login require a valid email and a password of at least six characters. Registration requires first and last names. A missing or null initial deposit is handled as `10000` by the registration service. `orderType` uses the `BUY`/`SELL` enum. The order endpoint includes a trailing slash in its mapping.
+The AI endpoints have no authentication middleware in the current implementation. No notification REST API is defined. Java Swagger/OpenAPI documentation and a Postman collection are not included.
 
-**Response details:** Authentication responses contain `userId`, profile fields, `walletBalance`, `accessToken`, `refreshToken`, and `tokenType`. Quote responses include `symbol`, `companyName`, `price`, `change`, `changePercent`, `high`, `low`, `open`, `volume`, and `timestamp`. Portfolio responses contain `holdings`, `totalInvested`, `currentValue`, `totalPnl`, `totalPnlPercent`, and `isProfit`.
+### Error responses
 
-**Order outcomes:** The placement controller returns `201` when its service method returns an order, including an order marked `FAILED`. Inspect `orderStatus` and `failureReason`; HTTP status alone does not prove execution succeeded.
+Custom Java exception handlers return `guid`, `errorCode`, `errorMessage`, `statusCode`, `statusName`, and `timestamp`. Framework validation errors may use a different structure. Gateway JWT failures return **`401` with an empty body**; their explanatory message is logged.
 
-Custom exception handlers define `guid`, `errorCode`, `errorMessage`, `statusCode`, `statusName`, and `timestamp`. Their timezone usage requires correction, and validation/generic failures do not all share this response shape.
+Some business failures are represented inside a returned order. For example, an insufficient-balance error during execution can produce HTTP `201` with `orderStatus: FAILED` and a `failureReason`.
 
-## Example API workflow
+## Example trading workflow
 
-Run this Bash example **after completing the startup/integration fixes and seeding TCS**. It uses a fresh local test account and Python 3 to extract the returned token and user ID.
+The examples use Bash, cURL, and Python for JSON parsing. Start the connected services first.
 
-### Register and capture credentials
+### Register and capture the access token
 
 ```bash
-export BASE_URL=http://localhost:8080
+export API_BASE=http://localhost:8080
 
-AUTH_RESPONSE="$(curl --silent --show-error --fail-with-body \
-  -X POST "$BASE_URL/api/v1/users/register" \
+AUTH_RESPONSE=$(curl --fail-with-body --silent --show-error \
+  -X POST "$API_BASE/api/v1/users/register" \
   -H 'Content-Type: application/json' \
-  -d '{
-    "email": "trader@example.com",
-    "password": "LocalDemo25!",
-    "firstName": "Demo",
-    "lastName": "Trader",
-    "initialDeposit": 10000
-  }')"
+  --data '{"firstName":"Demo","lastName":"Trader","email":"demo.trader@example.com","password":"LocalDemo123!","initialDeposit":10000}')
 
-export TOKEN="$(printf '%s' "$AUTH_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')"
-export USER_ID="$(printf '%s' "$AUTH_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["userId"])')"
+export ACCESS_TOKEN=$(printf '%s' "$AUTH_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')
+export USER_ID=$(printf '%s' "$AUTH_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["userId"])')
 ```
 
-For an existing account, obtain the authentication response through login instead:
+If the account already exists, obtain a fresh authentication response with login and repeat the two export commands above:
 
 ```bash
-AUTH_RESPONSE="$(curl --silent --show-error --fail-with-body \
-  -X POST "$BASE_URL/api/v1/users/login" \
+AUTH_RESPONSE=$(curl --fail-with-body --silent --show-error \
+  -X POST "$API_BASE/api/v1/users/login" \
   -H 'Content-Type: application/json' \
-  -d '{"email":"trader@example.com","password":"LocalDemo25!"}')"
-
-export TOKEN="$(printf '%s' "$AUTH_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')"
-export USER_ID="$(printf '%s' "$AUTH_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["userId"])')"
+  --data '{"email":"demo.trader@example.com","password":"LocalDemo123!"}')
 ```
 
 ### Read the profile, add funds, and inspect a quote
 
 ```bash
-curl --fail-with-body "$BASE_URL/api/v1/users/userDetail" \
-  -H "Authorization: Bearer $TOKEN"
+curl --fail-with-body "$API_BASE/api/v1/users/userDetail" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
 
 curl --fail-with-body -X POST \
-  "$BASE_URL/api/v1/users/$USER_ID/funds/add?amount=5000" \
-  -H "Authorization: Bearer $TOKEN"
+  "$API_BASE/api/v1/users/$USER_ID/funds/add?amount=5000.00" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
 
-curl --fail-with-body "$BASE_URL/api/v1/market/stocks/TCS" \
-  -H "Authorization: Bearer $TOKEN"
+curl --fail-with-body "$API_BASE/api/v1/market/stocks/TCS" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
-### Place a BUY order and inspect the portfolio
+### Buy one share and inspect the result
 
 ```bash
-curl --fail-with-body -X POST "$BASE_URL/api/v1/orders/" \
-  -H "Authorization: Bearer $TOKEN" \
+BUY_RESPONSE=$(curl --fail-with-body --silent --show-error \
+  -X POST "$API_BASE/api/v1/orders/" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"symbol":"TCS","orderType":"BUY","quantity":2}'
+  --data '{"symbol":"TCS","orderType":"BUY","quantity":1}')
 
-curl --fail-with-body "$BASE_URL/api/v1/orders/current-order-list" \
-  -H "Authorization: Bearer $TOKEN"
+printf '%s' "$BUY_RESPONSE" | python3 -m json.tool
+ORDER_ID=$(printf '%s' "$BUY_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 
-curl --fail-with-body "$BASE_URL/api/v1/portfolio/current-portfolio" \
-  -H "Authorization: Bearer $TOKEN"
+curl --fail-with-body "$API_BASE/api/v1/orders/$ORDER_ID" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+curl --fail-with-body "$API_BASE/api/v1/orders/current-order-list" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+curl --fail-with-body "$API_BASE/api/v1/portfolio/current-portfolio" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
-Confirm that the order response reports `EXECUTED`. Portfolio updates are asynchronous, so query again after the portfolio consumer processes `order.executed`. Notification messages appear in the notification-service logs.
+Confirm `orderStatus` is `EXECUTED`, then repeat the portfolio read until Kafka processing makes the holding visible. Check the profile again to see the wallet debit.
+
+After confirming that you hold the share, sell it:
+
+```bash
+curl --fail-with-body -X POST "$API_BASE/api/v1/orders/" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"symbol":"TCS","orderType":"SELL","quantity":1}'
+```
+
+Use positive amounts and valid owned quantities. If a trade or deposit times out, refresh orders and the wallet before retrying; writes are not idempotent in the current backend.
+
+## AI fraud screening
+
+The current [`main.py`](ai-service/main.py) sends order details to Anthropic using the configured model string `claude-sonnet-4-6`. It asks the model to assess frequency, order amount, quantity patterns, and other suspicious signals, then parses a JSON response.
+
+The older rule thresholds described in [`ai-service/README.md`](ai-service/README.md) do **not** match the current Python implementation. There is no implemented fixed score threshold such as `fraudScore > 0.5`.
+
+### AI credential configuration
+
+The checked-in client initialization uses a placeholder API-key string. Merely exporting `ANTHROPIC_API_KEY` will not override that argument. To read credentials from the environment, replace the client initialization in `ai-service/main.py` with:
+
+```python
+import os
+
+client = anthropic.Anthropic(
+    api_key=os.environ["ANTHROPIC_API_KEY"]
+)
+```
+
+Provide the key through the AI process environment or your IDE. For Bash, this reads it without displaying it:
+
+```bash
+read -r -s -p 'Anthropic API key: ' ANTHROPIC_API_KEY
+printf '\n'
+export ANTHROPIC_API_KEY
+```
+
+Then start the service as described in local setup. Model access and SDK compatibility must be verified with a real fraud-check request. Missing credentials after the initialization change cause startup to fail rather than silently use a placeholder.
+
+### Fraud-check contract
+
+`POST http://localhost:8086/api/fraud/check`
+
+| Request field | Type | Meaning |
+| --- | --- | --- |
+| `orderId` | String | Saved order ID |
+| `userId` | String | Trader ID |
+| `symbol` | String | Stock symbol |
+| `type` | String | `BUY` or `SELL` from order service |
+| `quantity` | Integer | Share quantity |
+| `price` | Number | Quote used for the order |
+| `totalAmount` | Number | Price multiplied by quantity |
+| `recentOrderCount` | Integer, optional | Default `0`; order service counts the user's orders created within the preceding hour, including the newly saved order |
+
+Responses contain `orderId`, `isSuspicious`, `fraudScore`, `reason`, `recommendation`, `aiProvider`, and `checkedAt`.
+
+The Java integration blocks only when `isSuspicious` is `true`. It logs the score but does not apply a score threshold or act on `recommendation` independently. The order persists `flaggedByAI` and `aiReason`; it does not persist the returned score or recommendation.
+
+### Failure behavior
+
+- Invalid provider JSON or provider-call errors produce a Python response with `isSuspicious: false`, score `0.0`, and recommendation `ALLOW`.
+- A transport/client exception in Java is caught, and order execution continues without a completed check.
+- `/health` reports process health even if the key is invalid or the provider is unavailable.
+
+An executed order alone therefore does not prove AI screening succeeded. Check AI logs and `aiProvider` on direct fraud-check responses. Trade details, including order/user IDs, quantities, and amounts, are sent to the external provider when configured.
 
 ## Kafka events
 
-| Topic | Producer | Message key | Consumer in this repository |
+| Topic | Producer | Message key | Consumers |
 | --- | --- | --- | --- |
-| `user.registered` | User service | User ID | Intended for notifications; current listener uses `user.register` and must be corrected |
-| `order.executed` | Order service | Order ID | Portfolio service, notification service |
+| `user.register` | User service | User ID | Notification service |
+| `order.executed` | Order service | Order ID | Portfolio and notification services |
 | `order.failed` | Order service | Order ID | Notification service |
-| `stock.price.updated` | Market-data service | Stock symbol | No consumer is currently implemented |
+| `order.flagged` | Order service | Order ID | Notification service |
+| `stock.price.updated` | Market-data service | Stock symbol | No listener implemented in this repository |
 
-The publishers send JSON-serialized maps:
+The registration topic is **`user.register`**, as declared by both producer and listener. Order events contain `orderId`, `userId`, `symbol`, `type`, `status`, `quantity`, `price`, and `totalAmount`, plus `reason` for failed or flagged events. Price events contain `symbol`, `price`, and `timestamp`.
 
-- **Registration:** `userId`, `email`, `firstName`, `lastName`, `walletBalance`.
-- **Order execution/failure:** `orderId`, `userId`, `symbol`, `type`, `status`, `quantity`, `price`, `totalAmount`; a failure adds `reason`.
-- **Price update:** `symbol`, `price`, `timestamp`.
+Portfolio and notifications use separate consumer groups, `portfolio-service-group` and `notification-service-group`, so both can receive executed-order events. Their configuration starts at the earliest available offset when no committed offset exists.
 
-Portfolio and notification consumers configure separate groups: `portfolio-service-group` and `notification-service-group`. No versioned event schema, transactional outbox, or application-level duplicate-event tracking is implemented.
+Inspect executed events locally:
 
-## Market-price streaming
+```bash
+docker compose exec kafka kafka-console-consumer \
+  --bootstrap-server kafka:29092 \
+  --topic order.executed --from-beginning
+```
 
-| Setting | Current implementation |
+Portfolio visibility is eventually consistent. Publication and database changes do not share a distributed transaction, and consumers do not deduplicate repeated events.
+
+## Market data and streaming
+
+The market-data service defines `RELIANCE`, `TCS`, `INFY`, `AAPL`, `GOOGL`, and `MSFT` in memory. It changes prices every two seconds by approximately ±0.25% per update, enforces a minimum price of `1`, updates Redis, broadcasts a quote, and publishes a price event.
+
+StockDesk displays all amounts as INR, including the simulated US-stock examples. No currency conversion, historical market feed, or exchange session calendar is implemented.
+
+### STOMP / SockJS interface
+
+| Setting | Current value |
 | --- | --- |
-| Direct SockJS base URL | `http://localhost:8082/ws` |
-| Declared gateway route | `/ws/**` forwarded to `ws://localhost:8082` |
-| STOMP broker prefix | `/topic` |
+| Direct SockJS endpoint | `http://localhost:8082/ws` |
+| Configured gateway SockJS path | `http://localhost:8080/ws` |
+| Broker destination prefix | `/topic` |
 | Application destination prefix | `/app` |
-| Per-symbol destination | `/topic/prices` concatenated directly with the symbol |
-| Example subscription | `/topic/pricesTCS` |
-| Simulation interval | `2000` milliseconds by default |
+| TCS subscription destination | `/topic/pricesTCS` |
+| RELIANCE subscription destination | `/topic/pricesRELIANCE` |
 
-The subscription string above matches the current code: there is no slash between `prices` and the symbol. Clients must use a compatible STOMP/SockJS client. Verify SockJS HTTP transports through the gateway separately, because the configured gateway route uses a WebSocket URI.
+There is **no slash between `prices` and the symbol** in the current broadcast destination. The gateway declares separate upgrade and SockJS routes, both with an HTTP upstream; actual WebSocket upgrade behavior needs integration verification. If upgrades fail, review the WebFlux WebSocket route and its `ws://` upstream separately from the HTTP SockJS fallback.
 
-Quotes start from each stock's `initialPrice`, change through a random simulation, and are written to Redis under `stock:price:{symbol}`. Prices are constrained to a minimum of `1`. The DTO includes `volume`, but the simulation initializes it to zero and does not update it.
+The current `/ws` routes have no JWT filter, and the market endpoint allows all origin patterns. StockDesk uses REST polling and does not use this streaming interface or proxy `/ws` requests.
 
 ## Testing and verification
 
-After fixing the build and configuring the required infrastructure:
+### Frontend checks
 
 ```bash
-mvn --batch-mode clean verify
+cd frontend
+npm run check
+npm test
 ```
 
-To focus on one module:
+The repository includes six Node.js tests covering exact REST paths and payloads, JWT forwarding, restricted proxy routes, gateway failure handling without replay, amount/quantity validation, demo wallet/holding updates, and HTML escaping. Syntax checks and all six tests passed during this README review.
+
+### Java checks
+
+With JDK 25 and local infrastructure configured:
 
 ```bash
-mvn --batch-mode -pl user-service -am test
+mvn --batch-mode test
+mvn --batch-mode verify
 ```
 
-Each Java module currently contains one `@SpringBootTest` with an empty `contextLoads()` method. These tests check context startup when they pass; they do not establish trading, authorization, wallet, or Kafka correctness. No isolated test profile or Testcontainers setup is supplied.
+Each Java module currently has a Spring Boot `contextLoads()` test. Business-flow, contract, and end-to-end coverage is not yet present in the Java test suite.
 
-A useful local verification sequence is to check health, register/login, load seeded quotes, place a BUY order, confirm the wallet change, wait for the holding update, and inspect notification logs. Also exercise duplicate registration, unknown symbols, insufficient wallet balance, cross-user access, invalid quantities, and overselling once the corresponding validation is corrected.
+### Connected smoke test
 
-**README verification:** Module names, configured ports, storage defaults, controller paths, DTO fields, Kafka topic names, streaming destinations, and Compose images/network settings were checked against the latest fetched source. Shell examples were syntax-checked, and the Compose file was parsed as YAML. Docker startup, a successful Java build, and an end-to-end application run have not been verified for this README.
+1. Check Java health endpoints and AI process health.
+2. Register, sign in, and read the wallet and sample quotes.
+3. Add funds and buy one share; inspect `orderStatus` and the wallet debit.
+4. Wait for the holding to appear, then sell only the quantity held.
+5. Inspect order history, portfolio updates, Kafka events, and notification logs.
+6. Separately verify a provider-backed fraud-check response and gateway streaming if needed.
 
-## Known issues and limitations
+Java builds, live AI calls, and the connected stack were not run during this documentation review. Frontend tests use a mock gateway and do not validate the running Java services.
 
-These findings describe the reviewed source revision and should be revisited as the implementation changes.
+## Troubleshooting
 
-### Build and startup corrections
+| Symptom | Checks / action |
+| --- | --- |
+| MySQL access denied | Supply `SPRING_DATASOURCE_PASSWORD=root` for bundled Compose, or match your existing server's credentials |
+| Missing root `mvnw` | Use installed Maven or `bash user-service/mvnw -f pom.xml` from the repository root |
+| Compilation or dependency resolution fails | Verify Maven uses JDK 25, repository access works, and all pinned POM coordinates resolve; inspect dependency management before changing versions |
+| Gateway returns `401` | Use the access token, confirm user/gateway secrets match, and check expiry; an empty response body is current behavior |
+| Order submission returns `404` | Preserve `/api/v1/orders/`, including its trailing slash; confirm the gateway and order service are running |
+| Frontend reports `502` | Confirm `GATEWAY_URL` and port `8080`; check orders/wallet before retrying a write |
+| Portfolio is stale | Verify Kafka and portfolio service, `order.executed`, consumer logs, and group offsets; HTTP order success does not guarantee consumer completion |
+| Notification consumer cannot find Kafka | Override with `SPRING_KAFKA_BOOTSTRAP_SERVERS`; correct the singular YAML property if editing configuration |
+| Registration welcome message is missing | The welcome listener's `String.format` currently has three placeholders but two arguments; its exception is logged |
+| AI reports `UP` but never flags trades | Check credential initialization, provider/SDK errors, and fallback responses; health does not prove screening worked |
+| SockJS works but WebSocket upgrades fail | Verify the upgrade route and WebFlux WebSocket URI handling; keep HTTP fallback routing separate |
+| Port/container conflict | Compose fixes names `mysql`, `redis`, and `kafka`; adjust ports/names and application connections together |
 
-| Area | Observed issue | Correction needed |
-| --- | --- | --- |
-| Dependency composition | The root POM declares Gateway server, Tomcat, Kafka broker, and other libraries as dependencies inherited by every Java module | Scope libraries to the services that use them and verify Boot/Cloud/Gateway compatibility and resolved versions |
-| Market-data JDBC driver | MySQL is configured, but this module does not declare `mysql-connector-j` and the parent does not supply it | Add the JDBC runtime dependency to the market-data module |
-| JWT runtime | User and gateway modules declare `jjwt-api` without explicit JJWT implementation and JSON-adapter runtime dependencies | Supply compatible runtime modules and verify token signing/parsing |
-| JWT secret | Both JWT secrets are blank in committed configuration | Supply one shared Base64-encoded HMAC secret to user and gateway services |
-| Application database credentials | Compose sets the MySQL root password to `root`, while Java YAML leaves the password blank | Set `SPRING_DATASOURCE_PASSWORD=root` for the JPA services when using bundled Compose |
-| Gateway predicates | YAML uses `-Path=...` instead of a list entry such as `- Path=/api/v1/orders/**` | Correct predicate list syntax in the gateway configuration |
-| Gateway identity propagation | `JwtAuthFilter` calls `.header("X-User-Id")` without the extracted user ID | Replace incoming identity values with the verified `userId` claim when building the downstream request |
-| Kafka consumer classes | Portfolio and notification YAML use `StringDeSerializer` and `JsonDeSerializer` | Correct the capitalization to `StringDeserializer` and `JsonDeserializer`, then verify serializer compatibility with the resolved Spring Kafka/Jackson versions |
-| Kafka consumer properties | Consumer JSON options are expressed as nested YAML structures under `properties` | Express Kafka custom properties as flat keys, including `spring.json.trusted.packages`, `spring.json.use.type.headers`, and `spring.json.value.default.type` |
-| Notification broker setting | Notification YAML uses singular `spring.kafka.bootstrap-server` | Use `spring.kafka.bootstrap-servers` |
-| Order validation | `OrderRequest.orderType` applies `@NotBlank` to an enum; `quantity` has `@Min` without `@NotNull` | Use enum-appropriate null validation and require a non-null positive quantity |
-| Registration event | User service publishes `user.registered`, while notifications listen on `user.register` | Align the listener with the producer's topic |
-| Stock initialization | `DataInitializer` has no implementation, so a fresh database has no active stocks | Add stock seed data and restart the market-data service, or implement an initializer |
-| Exception timestamps | Custom exception handlers call `ZoneId.systemDefault()` | Use a valid region ID such as `Asia/Kolkata` so error formatting does not fail |
+## Current limitations
 
-### Behavioral limitations
+These boundaries are visible in the current source and should guide further implementation:
 
-- **Authorization:** JWT validation is concentrated in the gateway. User-ID lookup and wallet endpoints do not enforce ownership within the user service, and portfolio lookup by ID has no ownership check. The gateway also uses substring checks to identify public paths and logs rejected tokens.
-- **Wallet correctness:** Fund operations lack positive-amount checks, locking/version checks, and a transaction design for concurrent updates.
-- **SELL execution:** The order service credits the wallet before the asynchronous portfolio consumer checks available holdings. A consumer-side overselling failure does not reverse that credit or change the order status.
-- **Event reliability:** Database writes, wallet calls, and Kafka publication do not share an atomic transaction. Consumers do not deduplicate order events, and portfolio processing catches and logs errors rather than propagating them for failure handling.
-- **Portfolio completeness:** Quote-fetching failures are logged and the affected holding is omitted from that response's calculated totals.
-- **Account lifecycle:** Status values exist in the model but are not checked during login. Refresh-token exchange, revocation, and logout are absent.
-- **Deployment:** Compose provisions MySQL, Redis, and Kafka. Database migrations, Java-service container definitions, application deployment manifests, and automated delivery workflows are not included. Redis uses an unpinned `latest` image tag, and only MySQL has a declared persistent volume.
-- **Pending functionality:** AI fraud screening, external email/SMS delivery, a frontend, and a live market-data connector are unfinished or absent.
-
-## Development priorities
-
-1. Resolve the build/startup issues and establish a repeatable local run using the committed Compose infrastructure and seeded stocks.
-2. Add controller/service authorization, correct JWT header propagation, and tighten public route matching.
-3. Validate wallet inputs and design consistent wallet/order/holding updates, including pre-execution SELL checks.
-4. Add reliable event publication, idempotent consumers, retry handling, and recoverable processing failures.
-5. Add business-focused unit, API, and integration tests, followed by migrations and reproducible infrastructure setup.
-6. Implement notification delivery, then the AI service and frontend as separately verified additions.
-
-These are proposed next steps, not capabilities currently delivered by the repository.
+- **Authorization:** Direct backend ports trust downstream identity headers. User/profile/wallet routes by ID and portfolio lookup by ID lack consistent ownership checks. Restrict access to service ports and add service-level authorization before wider deployment.
+- **Wallet validation and concurrency:** Amounts and initial deposits lack positive-value constraints. Wallet read/modify/write operations have no locking/version control or idempotency keys. `quantity` has `@Min(1)` but lacks `@NotNull`.
+- **SELL correctness:** The order service credits the wallet before the portfolio consumer checks available shares. Consumer rejection does not reverse the credit. StockDesk prevents obvious overselling in its UI, but backend enforcement is still required.
+- **Consistency and recovery:** Wallet calls, order persistence, and Kafka publication are not atomic. Send results are not awaited, consumers lack event deduplication, and processing exceptions are caught and logged. Add reliable publication, retries, and compensation.
+- **AI reliability:** Provider output is parsed from free-form JSON without a decision-policy validator. Both Python and Java allow execution on screening errors; flagged orders have no manual-review or release API.
+- **Account lifecycle:** Access and refresh tokens share the signing approach and lack a token-purpose distinction checked by the gateway. Refresh exchange, revocation, and server-side logout are absent; account status is not enforced at login.
+- **Portfolio completeness:** A quote-fetching failure omits that holding from the response and its calculated totals. Realized P&L and a transaction ledger are not implemented.
+- **Notifications:** Delivery is log-based; email, SMS, and push integrations are absent. The registration welcome-message formatting error still needs correction.
+- **Deployment:** No application Dockerfiles, deployment manifests, database migrations, or CI/CD workflows are committed. Kafka is a single local broker, Redis uses `latest`, and only MySQL has a declared persistent volume.
+- **Trading scope:** No limit orders, partial fills, matching engine, brokerage settlement, exchange feed, or real payment flow is implemented.
 
 ## Contributing
 
-Open an issue with the affected service, reproduction steps, and relevant logs. For a code change, create a branch, make a focused update, add validation appropriate to the behavior, and run the relevant Maven checks before opening a pull request. Update this README when changing API paths, configuration, events, or service boundaries.
+Open an [issue](https://github.com/swapdutt/stock-trading-platform/issues) with the affected service, reproduction steps, and relevant logs. Keep changes focused, verify the behavior affected, and update documentation when API paths, configuration, events, or startup requirements change.
 
-Repository maintainer: [swapdutt](https://github.com/swapdutt).
+Maintainer: [swapdutt](https://github.com/swapdutt).
 
 ## License
 
-No `LICENSE` file is included in the reviewed repository revision. Add one to define the project's usage and redistribution terms.
+No `LICENSE` file is included in the reviewed repository. Licensing terms should be defined by the repository maintainer.
 
 ---
